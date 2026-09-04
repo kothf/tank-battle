@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Tank Battle - 2-Player Scorched Earth</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="arcade-cabinet">
+    <!-- Top HUD: Player Status & Wind -->
+    <header class="top-hud">
+      <!-- Player 1 Profile -->
+      <div id="p1Card" class="player-card p1 active-player">
+        <div class="player-header">
+          <span class="p-name">🟩 P1 (GREEN)</span>
+          <span id="p1HpText" class="hp-num">100 / 100</span>
+        </div>
+        <div class="bar-container">
+          <div class="hp-track">
+            <div id="p1HpFill" class="hp-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Widget: Active Turn & Wind -->
+      <div class="center-widget">
+        <div id="turnBanner" class="turn-banner turn-p1">PLAYER 1'S TURN</div>
+        <div class="wind-meter">
+          <span>WIND:</span>
+          <span id="windArrow" class="wind-arrow">➜</span>
+          <span id="windText">CALM 0.0</span>
+        </div>
+      </div>
+
+      <!-- Player 2 Profile -->
+      <div id="p2Card" class="player-card p2">
+        <div class="player-header">
+          <span class="p-name">🟥 P2 (RED)</span>
+          <span id="p2HpText" class="hp-num">100 / 100</span>
+        </div>
+        <div class="bar-container">
+          <div class="hp-track">
+            <div id="p2HpFill" class="hp-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Canvas Frame / CRT Screen -->
+    <main id="screenFrame" class="screen-frame scanlines-enabled">
+      <canvas id="gameCanvas" width="640" height="360"></canvas>
+
+      <!-- Victory / Game Over Modal -->
+      <div id="victoryModal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <h2 id="victoryTitle" class="modal-title">VICTORY!</h2>
+          <p id="victorySubtitle" class="modal-desc">Opponent obliterated in battle.</p>
+          <button id="btnRematch" class="btn-rematch">⚔️ REMATCH / PLAY AGAIN</button>
+        </div>
+      </div>
+
+      <!-- Controls & Help Modal -->
+      <div id="helpModal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <h2 class="modal-title" style="color: var(--c-yellow);">FIELD MANUAL & CONTROLS</h2>
+          <div class="help-grid">
+            <div class="help-col">
+              <h4>KEYBOARD SHORTCUTS</h4>
+              <ul>
+                <li><kbd>A</kbd> / <kbd>D</kbd> or <kbd>◀</kbd><kbd>▶</kbd> : Drive Tank</li>
+                <li><kbd>W</kbd> / <kbd>S</kbd> or <kbd>▲</kbd><kbd>▼</kbd> : Aim Angle</li>
+                <li><kbd>Q</kbd> / <kbd>E</kbd> : Adjust Shot Power</li>
+                <li><kbd>1</kbd> - <kbd>6</kbd> : Choose Weapon</li>
+                <li><kbd>SPACE</kbd> / <kbd>ENTER</kbd> : Fire Weapon!</li>
+                <li><kbd>M</kbd> : Toggle Audio Mute</li>
+                <li><kbd>H</kbd> : Show / Hide Help</li>
+              </ul>
+            </div>
+            <div class="help-col">
+              <h4>ARSENAL GUIDE</h4>
+              <ul>
+                <li><strong>💣 Standard Shell:</strong> Unlimited cannon fire with moderate blast radius.</li>
+                <li><strong>☢️ Heavy Nuke:</strong> Massive apocalyptic crater, screen shake, heavy damage.</li>
+                <li><strong>💥 MIRV Cluster:</strong> Pops open at trajectory apex into 5 spreading bomblets.</li>
+                <li><strong>⛰️ Dirt Bomb:</strong> Zero damage terraformer that raises a solid dirt barrier or buries foes.</li>
+                <li><strong>⚽ Bouncy Shot:</strong> High-velocity shell bouncing up to 3 times before detonation.</li>
+                <li><strong>⚡ Sniper:</strong> Kinetic dart penetrating earth with high direct damage.</li>
+              </ul>
+            </div>
+          </div>
+          <button id="btnCloseHelp" class="btn-retro" style="padding: 6px 16px;">CLOSE MANUAL</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Control Console -->
+    <footer class="control-console">
+      <!-- Primary Controls Row -->
+      <div class="controls-row-primary">
+        <!-- Tank Movement Section -->
+        <div class="panel-section">
+          <div class="section-label">
+            <span>DRIVE</span>
+            <span id="fuelText">100%</span>
+          </div>
+          <div class="drive-btn-group">
+            <button id="btnDriveLeft" class="btn-retro" style="flex: 1;">◀ LEFT</button>
+            <button id="btnDriveRight" class="btn-retro" style="flex: 1;">RIGHT ▶</button>
+          </div>
+          <div class="fuel-gauge">
+            <div class="fuel-track">
+              <div id="fuelFill" class="fuel-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Turret Angle Section -->
+        <div class="panel-section">
+          <div class="section-label">
+            <span>TURRET ANGLE</span>
+            <span id="angleVal" style="color: var(--c-yellow);">45°</span>
+          </div>
+          <div class="slider-group">
+            <button id="btnAngleDown" class="btn-retro btn-step">-</button>
+            <input id="angleSlider" type="range" min="0" max="180" value="45" class="retro-slider">
+            <button id="btnAngleUp" class="btn-retro btn-step">+</button>
+          </div>
+        </div>
+
+        <!-- Shot Power Section -->
+        <div class="panel-section">
+          <div class="section-label">
+            <span>FIRE POWER</span>
+            <span id="powerVal" style="color: var(--c-yellow);">65%</span>
+          </div>
+          <div class="slider-group">
+            <button id="btnPowerDown" class="btn-retro btn-step">-</button>
+            <input id="powerSlider" type="range" min="5" max="100" value="65" class="retro-slider">
+            <button id="btnPowerUp" class="btn-retro btn-step">+</button>
+          </div>
+          <div class="fuel-track" style="margin-top: 2px;">
+            <div id="powerMeterFill" class="fuel-fill" style="background: linear-gradient(90deg, #29adff, #ff004d); width: 65%;"></div>
+          </div>
+        </div>
+
+        <!-- Big Fire Button Section -->
+        <div class="fire-container">
+          <button id="fireBtn" class="btn-fire">
+            <span>🔥</span> FIRE!
+          </button>
+        </div>
+      </div>
+
+      <!-- Weapons Inventory Tray -->
+      <div id="weaponSelector" class="weapons-tray">
+        <div id="wcard-standard" class="weapon-card selected" title="Standard Shell: Unlimited ammo">
+          <div class="weapon-icon">💣</div>
+          <div class="weapon-title">STANDARD</div>
+          <div class="weapon-sub">
+            <span class="ammo-count">∞</span>
+            <span class="key-hint">[1]</span>
+          </div>
+        </div>
+
+        <div id="wcard-nuke" class="weapon-card" title="Heavy Nuke: Massive crater and devastation">
+          <div class="weapon-icon">☢️</div>
+          <div class="weapon-title">HEAVY NUKE</div>
+          <div class="weapon-sub">
+            <span class="ammo-count">x2</span>
+            <span class="key-hint">[2]</span>
+          </div>
+        </div>
+
+        <div id="wcard-mirv" class="weapon-card" title="MIRV Cluster: Splits into 5 bomblets at apex">
+          <div class="weapon-icon">💥</div>
+          <div class="weapon-title">MIRV CLUSTER</div>
+          <div class="weapon-sub">
+            <span class="ammo-count">x3</span>
+            <span class="key-hint">[3]</span>
+          </div>
+        </div>
+
+        <div id="wcard-dirt" class="weapon-card" title="Dirt Bomb: Creates a hill of solid ground">
+          <div class="weapon-icon">⛰️</div>
+          <div class="weapon-title">DIRT BOMB</div>
+          <div class="weapon-sub">
+            <span class="ammo-count">x3</span>
+            <span class="key-hint">[4]</span>
+          </div>
+        </div>
+
+        <div id="wcard-bouncy" class="weapon-card" title="Bouncy Shot: Warhead bounces up to 3 times">
+          <div class="weapon-icon">⚽</div>
+          <div class="weapon-title">BOUNCY SHOT</div>
+          <div class="weapon-sub">
+            <span class="ammo-count">x3</span>
+            <span class="key-hint">[5]</span>
+          </div>
+        </div>
+
+        <div id="wcard-sniper" class="weapon-card" title="Sniper Piercer: Fast burrowing kinetic dart">
+          <div class="weapon-icon">⚡</div>
+          <div class="weapon-title">SNIPER DART</div>
+          <div class="weapon-sub">
+            <span class="ammo-count">x2</span>
+            <span class="key-hint">[6]</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Utility Bar -->
+      <div class="utility-bar">
+        <div class="util-left">
+          <button id="btnSoundToggle" class="btn-util">🔊 SOUND</button>
+          <button id="btnScanlines" class="btn-util">📺 SCANLINES</button>
+          <button id="btnHelp" class="btn-util">❓ HELP / KEYS</button>
+        </div>
+        <div class="util-right">
+          <button id="btnRestartMatch" class="btn-util">🔄 NEW MAP</button>
+          <button id="btnFullscreen" class="btn-util">⛶ FULLSCREEN</button>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Game Scripts -->
+  <script src="audio.js"></script>
+  <script src="terrain.js"></script>
+  <script src="particles.js"></script>
+  <script src="tank.js"></script>
+  <script src="weapons.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
