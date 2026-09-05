@@ -209,11 +209,12 @@ class TankBattleGame {
     if (this.state === 'SETTLING') {
       this.settleFrames--;
 
-      // Let tanks fall or adjust if ground beneath them collapsed
-      const p1Falling = this.player1.isFalling;
-      const p2Falling = this.player2.isFalling;
+      // Only living tanks need to settle; dead tanks are already destroyed
+      const p1Falling = !this.player1.isDead && this.player1.isFalling;
+      const p2Falling = !this.player2.isDead && this.player2.isFalling;
 
-      if (this.settleFrames <= 0 && !p1Falling && !p2Falling) {
+      // Transition when settled, with failsafe timeout (~1.5s) to prevent state hanging
+      if ((this.settleFrames <= 0 && !p1Falling && !p2Falling) || this.settleFrames < -45) {
         this.checkWinConditionOrNextTurn();
       }
     }
@@ -344,6 +345,10 @@ class TankBattleGame {
     for (let i = 0; i < this.projectiles.length; i++) {
       const p = this.projectiles[i];
       if (p.isDead) continue;
+      if (p.timeAlive > 360) {
+        p.isDead = true;
+        continue;
+      }
 
       const result = p.update(this.wind, this.terrain, tanks, this.particles);
 

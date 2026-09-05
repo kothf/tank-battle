@@ -178,6 +178,12 @@ class Projectile {
       particleSys.createTrail(this.x, this.y, this.weapon.trailColor, this.isSubMunition ? 1 : 2);
     }
 
+    // Failsafe lifetime limit (6 seconds)
+    if (this.timeAlive > 360) {
+      this.isDead = true;
+      return { exploded: false, subProjectiles: [] };
+    }
+
     // MIRV Apex check: once projectile reaches apex and begins descending, split!
     if (this.weapon.isMirv && !this.hasSplit && !this.isSubMunition) {
       // Apex condition: vy >= -0.2 and airborne for at least 15 frames
@@ -199,7 +205,7 @@ class Projectile {
             this.y,
             this.vx + spX,
             this.vy + spY,
-            { ...this.weapon, radius: 18, directDmg: 29, maxSplashDmg: 22 },
+            { ...this.weapon, isMirv: false, radius: 18, directDmg: 29, maxSplashDmg: 22 },
             this.ownerId
           );
           sub.isSubMunition = true;
