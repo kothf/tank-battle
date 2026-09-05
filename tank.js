@@ -36,6 +36,7 @@ class Tank {
       dirt: 3,
       bouncy: 3,
       sniper: 2,
+      drill: 2,
     };
     this.selectedWeapon = 'standard';
 

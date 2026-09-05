@@ -14,8 +14,8 @@ const WEAPONS = {
     icon: '💣',
     desc: 'Balanced cannon shell with moderate explosive yield.',
     radius: 26,
-    directDmg: 42,
-    maxSplashDmg: 32,
+    directDmg: 50,
+    maxSplashDmg: 38,
     gravityMult: 1.0,
     speedMult: 1.0,
     color: '#FFF1E8',
@@ -31,8 +31,8 @@ const WEAPONS = {
     icon: '☢️',
     desc: 'Heavy thermonuclear payload. Massive crater & apocalyptic damage.',
     radius: 54,
-    directDmg: 85,
-    maxSplashDmg: 70,
+    directDmg: 102,
+    maxSplashDmg: 84,
     gravityMult: 1.15,
     speedMult: 0.88,
     color: '#FFEC27',
@@ -48,8 +48,8 @@ const WEAPONS = {
     icon: '💥',
     desc: 'Splits at trajectory apex into 5 devastating bomblets.',
     radius: 20,
-    directDmg: 25,
-    maxSplashDmg: 20,
+    directDmg: 30,
+    maxSplashDmg: 24,
     gravityMult: 1.0,
     speedMult: 1.0,
     color: '#FF77A8',
@@ -82,8 +82,8 @@ const WEAPONS = {
     icon: '⚽',
     desc: 'Rubber-coated warhead that bounces off terrain up to 3 times.',
     radius: 28,
-    directDmg: 45,
-    maxSplashDmg: 35,
+    directDmg: 54,
+    maxSplashDmg: 42,
     gravityMult: 1.0,
     speedMult: 1.0,
     color: '#00E436',
@@ -99,8 +99,8 @@ const WEAPONS = {
     icon: '⚡',
     desc: 'Ultra-fast kinetic slug that pierces through terrain.',
     radius: 20,
-    directDmg: 60,
-    maxSplashDmg: 22,
+    directDmg: 72,
+    maxSplashDmg: 26,
     gravityMult: 0.45,
     speedMult: 1.6,
     color: '#29ADFF',
@@ -110,6 +110,24 @@ const WEAPONS = {
     isMirv: false,
     bouncesLeft: 0,
     pierceCount: 16,
+  },
+  drill: {
+    id: 'drill',
+    name: 'Tunnel Drill',
+    icon: '⛏️',
+    desc: 'Subterranean missile. Burrows directly through the ground to obliterate targets.',
+    radius: 34,
+    directDmg: 65,
+    maxSplashDmg: 45,
+    gravityMult: 0.9,
+    speedMult: 1.15,
+    color: '#FFA300',
+    trailColor: '#FF77A8',
+    isNuke: false,
+    isDirt: false,
+    isMirv: false,
+    isDrill: true,
+    bouncesLeft: 0,
   },
 };
 
@@ -126,6 +144,7 @@ class Projectile {
 
     this.bounces = weaponDef.bouncesLeft || 0;
     this.pierceLeft = weaponDef.pierceCount || 0;
+    this.isDrill = weaponDef.isDrill || false;
     this.hasSplit = false;
     this.timeAlive = 0;
     this.isDead = false;
@@ -180,7 +199,7 @@ class Projectile {
             this.y,
             this.vx + spX,
             this.vy + spY,
-            { ...this.weapon, radius: 18, directDmg: 24, maxSplashDmg: 18 },
+            { ...this.weapon, radius: 18, directDmg: 29, maxSplashDmg: 22 },
             this.ownerId
           );
           sub.isSubMunition = true;
@@ -243,8 +262,69 @@ class Projectile {
       }
       if (hit) break;
 
+      // Subterranean proximity sensor for drill weapon
+      if (this.isDrill && this.timeAlive > 6) {
+        for (let i = 0; i < tanks.length; i++) {
+          const tank = tanks[i];
+          if (tank.isDead || tank.id === this.ownerId) continue;
+          const dToTank = Math.hypot(curX - tank.x, curY - (tank.y - 4));
+          if (dToTank <= 16) {
+            hit = true;
+            hitX = curX;
+            hitY = curY;
+            hitDirectTank = tank;
+            break;
+          }
+        }
+      }
+      if (hit) break;
+
       // 3. Check collision against terrain
       if (terrain.isSolid(curX, curY)) {
+        // If tunnel drill: burrows directly through the ground!
+        if (this.isDrill) {
+          // Underground bottom abyss or timeout check
+          if (curY >= terrain.height - 8 || this.timeAlive > 220) {
+            hit = true;
+            hitX = curX;
+            hitY = Math.min(curY, terrain.height - 8);
+            break;
+          }
+
+          // Carve narrow tunnel through the subterranean rock
+          if (s % 2 === 0) {
+            terrain.carveCrater(curX, curY, 4);
+          }
+
+          // Subterranean visual FX & sound
+          if (particleSys && Math.random() < 0.6) {
+            particleSys.createTrail(curX, curY, '#FFA300', 3);
+            particleSys.particles.push({
+              type: 'spark',
+              x: curX,
+              y: curY,
+              vx: (Math.random() - 0.5) * 1.5,
+              vy: -0.4 - Math.random() * 1.2,
+              gravity: 0.12,
+              drag: 0.96,
+              size: 2,
+              colorIndex: 0,
+              colors: ['#FFEC27', '#FFA300', '#FF004D'],
+              life: 0.6,
+              decay: 0.05,
+            });
+          }
+
+          if (window.soundFX && Math.random() < 0.25) {
+            window.soundFX.playDrillGrind();
+          }
+
+          // Slight friction retention
+          this.vx *= 0.995;
+          this.vy *= 0.995;
+          continue; // Keeps tunneling through the ground!
+        }
+
         // If bouncy weapon and bounces remaining
         if (this.bounces > 0) {
           this.bounces--;
@@ -404,6 +484,25 @@ class Projectile {
       ctx.fillRect(-6, -1, 12, 2);
       ctx.fillStyle = '#FFF1E8';
       ctx.fillRect(-2, 0, 4, 1);
+    } else if (this.weapon.id === 'drill') {
+      // Subterranean hardened drill missile
+      ctx.fillStyle = '#5F574F';
+      ctx.fillRect(-6, -3, 8, 6);
+      ctx.fillStyle = '#C2C3C7';
+      ctx.beginPath();
+      ctx.moveTo(2, -4);
+      ctx.lineTo(9, 0); // Cone drill head
+      ctx.lineTo(2, 4);
+      ctx.closePath();
+      ctx.fill();
+      // Tungsten carbide spiraled ridges
+      ctx.fillStyle = '#FFEC27';
+      ctx.fillRect(-3, -2, 2, 4);
+      ctx.fillStyle = '#FFA300';
+      ctx.fillRect(0, -2, 2, 4);
+      // Rocket thruster exhaust
+      ctx.fillStyle = '#FF004D';
+      ctx.fillRect(-8, -1.5, 2, 3);
     } else {
       // Standard / MIRV shell
       ctx.fillStyle = this.weapon.color;

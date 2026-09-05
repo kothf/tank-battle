@@ -242,6 +242,40 @@ class SoundFX {
 
       osc.start(now);
       osc.stop(now + 0.18);
+    } else if (weaponId === 'drill') {
+      // Subterranean rocket thruster + mechanical drill spin
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.linearRampToValueAtTime(540, now + 0.1);
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.3);
+
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = this.createNoiseBuffer(0.3);
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(600, now);
+      filter.Q.setValueAtTime(3.0, now);
+
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.35, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(this.masterGain);
+
+      osc.start(now);
+      osc.stop(now + 0.32);
+      noise.start(now);
+      noise.stop(now + 0.3);
     } else {
       // Standard Shell: Punchy 8-bit cannon shot
       const osc = this.ctx.createOscillator();
@@ -328,6 +362,32 @@ class SoundFX {
 
     osc.start(now);
     osc.stop(now + 0.09);
+  }
+
+  /**
+   * Crunchy mechanical subterranean grinding sound
+   */
+  playDrillGrind() {
+    if (this.muted) return;
+    this.ensureContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80 + Math.random() * 60, now);
+    osc.frequency.linearRampToValueAtTime(35, now + 0.07);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(now + 0.07);
   }
 
   /**
