@@ -48,6 +48,21 @@
       </div>
     </header>
 
+    <!-- Game Mode & Bot Difficulty Bar -->
+    <div class="mode-bar">
+      <div class="mode-group">
+        <span class="mode-label">MODE:</span>
+        <button id="btnModePvP" class="btn-mode">👥 2 PLAYERS</button>
+        <button id="btnModePvB" class="btn-mode active">🤖 VS BOT</button>
+      </div>
+      <div id="botDiffGroup" class="diff-group">
+        <span class="mode-label">BOT SKILL:</span>
+        <button id="btnDiffEasy" class="btn-diff" data-level="easy">RECRUIT</button>
+        <button id="btnDiffMed" class="btn-diff active" data-level="medium">VETERAN</button>
+        <button id="btnDiffHard" class="btn-diff" data-level="hard">ELITE</button>
+      </div>
+    </div>
+
     <!-- Canvas Frame / CRT Screen -->
     <main id="screenFrame" class="screen-frame scanlines-enabled">
       <canvas id="gameCanvas" width="640" height="360"></canvas>
@@ -72,7 +87,7 @@
                 <li><kbd>A</kbd> / <kbd>D</kbd> or <kbd>◀</kbd><kbd>▶</kbd> : Drive Tank</li>
                 <li><kbd>W</kbd> / <kbd>S</kbd> or <kbd>▲</kbd><kbd>▼</kbd> : Aim Angle</li>
                 <li><kbd>Q</kbd> / <kbd>E</kbd> : Adjust Shot Power</li>
-                <li><kbd>1</kbd> - <kbd>6</kbd> : Choose Weapon</li>
+                <li><kbd>1</kbd> - <kbd>7</kbd> : Choose Weapon</li>
                 <li><kbd>SPACE</kbd> / <kbd>ENTER</kbd> : Fire Weapon!</li>
                 <li><kbd>M</kbd> : Toggle Audio Mute</li>
                 <li><kbd>H</kbd> : Show / Hide Help</li>
@@ -87,8 +102,13 @@
                 <li><strong>⛰️ Dirt Bomb:</strong> Zero damage terraformer that raises a solid dirt barrier or buries foes.</li>
                 <li><strong>⚽ Bouncy Shot:</strong> High-velocity shell bouncing up to 3 times before detonation.</li>
                 <li><strong>⚡ Sniper:</strong> Kinetic dart penetrating earth with high direct damage.</li>
+                <li><strong>⛏️ Tunnel Drill:</strong> Subterranean missile that burrows directly through the ground to obliterate targets.</li>
               </ul>
             </div>
+          </div>
+          <div style="margin-bottom: 12px; padding: 6px 10px; background: #1c2233; border: 1px solid #2d364f; border-radius: 4px; font-size: 10px; color: var(--c-yellow); text-align: left;">
+            💥 <strong>+20% Extra Fire Power:</strong> All cannons tuned with 20% higher velocity and destructive yield!<br>
+            🤖 <strong>AI Bot:</strong> Select "VS BOT" to play solo with Recruit (Easy), Veteran (Medium), or Elite (Hard) skill.
           </div>
           <button id="btnCloseHelp" class="btn-retro" style="padding: 6px 16px;">CLOSE MANUAL</button>
         </div>
@@ -206,6 +226,15 @@
           <div class="weapon-sub">
             <span class="ammo-count">x2</span>
             <span class="key-hint">[6]</span>
+          </div>
+        </div>
+
+        <div id="wcard-drill" class="weapon-card" title="Tunnel Drill: Burrows straight through the ground to obliterate targets">
+          <div class="weapon-icon">⛏️</div>
+          <div class="weapon-title">TUNNEL DRILL</div>
+          <div class="weapon-sub">
+            <span class="ammo-count">x2</span>
+            <span class="key-hint">[7]</span>
           </div>
         </div>
       </div>

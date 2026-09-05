@@ -72,6 +72,85 @@ body {
   margin-bottom: 8px;
 }
 
+/* Game Mode & Bot Difficulty Bar */
+.mode-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  background: #151926;
+  border: 1px solid #283046;
+  border-radius: 6px;
+  padding: 5px 10px;
+  margin-bottom: 8px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mode-group, .diff-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-label {
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--c-light-gray);
+  letter-spacing: 0.5px;
+}
+
+.btn-mode, .btn-diff {
+  background: #1c2233;
+  border: 1px solid #3c4667;
+  color: var(--c-light-gray);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-mode:hover, .btn-diff:hover {
+  border-color: var(--c-blue);
+  color: var(--c-white);
+}
+
+.btn-mode.active {
+  background: #252e46;
+  border-color: var(--c-yellow);
+  color: var(--c-yellow);
+  box-shadow: 0 0 6px rgba(255, 236, 39, 0.3);
+}
+
+.btn-diff.active[data-level="easy"] {
+  background: #0a2912;
+  border-color: var(--c-green);
+  color: var(--c-green);
+  box-shadow: 0 0 6px rgba(0, 228, 54, 0.3);
+}
+
+.btn-diff.active[data-level="medium"] {
+  background: #2b2308;
+  border-color: var(--c-yellow);
+  color: var(--c-yellow);
+  box-shadow: 0 0 6px rgba(255, 236, 39, 0.3);
+}
+
+.btn-diff.active[data-level="hard"] {
+  background: #2b0c16;
+  border-color: var(--c-red);
+  color: var(--c-red);
+  box-shadow: 0 0 6px rgba(255, 0, 77, 0.3);
+}
+
+.diff-group.disabled {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
 .player-card {
   background: #181c2b;
   border: 2px solid #2e354f;
@@ -411,8 +490,8 @@ canvas#gameCanvas {
 /* Weapon Cards Row */
 .weapons-tray {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
 }
 
 .weapon-card {
@@ -617,6 +696,10 @@ canvas#gameCanvas {
     grid-template-columns: 1fr 1fr;
   }
   .weapons-tray {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .mode-bar {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

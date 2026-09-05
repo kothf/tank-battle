@@ -47,6 +47,16 @@ class TankBattleGame {
       p2Hits: 0,
     };
 
+    // Game Mode & Bot AI ('pvb' = Player vs Bot, 'pvp' = 2 Players)
+    this.gameMode = 'pvb';
+    this.botDifficulty = 'medium'; // 'easy', 'medium', 'hard'
+    this.botState = 'IDLE'; // 'IDLE', 'THINKING', 'DRIVING', 'AIMING', 'FIRING'
+    this.botTimer = 0;
+    this.botTargetAngle = 45;
+    this.botTargetPower = 65;
+    this.botDriveDir = 0;
+    this.botDriveFrames = 0;
+
     this.initEnvironment();
     this.initTanks();
     this.setupEventListeners();
@@ -118,7 +128,7 @@ class TankBattleGame {
     this.player1.power = 65;
     this.player1.isDead = false;
     this.player1.detachedTurret = null;
-    this.player1.inventory = { standard: Infinity, nuke: 2, mirv: 3, dirt: 3, bouncy: 3, sniper: 2 };
+    this.player1.inventory = { standard: Infinity, nuke: 2, mirv: 3, dirt: 3, bouncy: 3, sniper: 2, drill: 2 };
     this.player1.selectedWeapon = 'standard';
     this.player1.resetTurn();
 
@@ -130,10 +140,11 @@ class TankBattleGame {
     this.player2.power = 65;
     this.player2.isDead = false;
     this.player2.detachedTurret = null;
-    this.player2.inventory = { standard: Infinity, nuke: 2, mirv: 3, dirt: 3, bouncy: 3, sniper: 2 };
+    this.player2.inventory = { standard: Infinity, nuke: 2, mirv: 3, dirt: 3, bouncy: 3, sniper: 2, drill: 2 };
     this.player2.selectedWeapon = 'standard';
     this.player2.resetTurn();
 
+    this.botState = 'IDLE';
     this.activePlayer = this.player1;
     this.randomizeWind();
 
@@ -182,7 +193,11 @@ class TankBattleGame {
 
     // Continuous input handling for active player during their turn
     if (this.state === 'PLAYER_TURN') {
-      this.handleContinuousInput();
+      if (this.gameMode === 'pvb' && this.activePlayer && this.activePlayer.id === 2) {
+        this.updateBot();
+      } else {
+        this.handleContinuousInput();
+      }
     }
 
     // Update projectiles in flight
@@ -298,7 +313,7 @@ class TankBattleGame {
 
     // Muzzle position & trajectory angle
     const muzzle = tank.getMuzzlePosition();
-    const speed = (2.2 + (tank.power / 100) * 8.2) * weaponDef.speedMult;
+    const speed = (2.2 + (tank.power / 100) * 8.2) * 1.2 * weaponDef.speedMult;
     const vx = Math.cos(muzzle.angle) * speed;
     const vy = Math.sin(muzzle.angle) * speed;
 
@@ -387,8 +402,12 @@ class TankBattleGame {
     this.state = 'PLAYER_TURN';
     this.updateHUD();
 
-    if (window.soundFX) {
-      window.soundFX.playTurnStart(this.activePlayer.id === 1);
+    if (this.gameMode === 'pvb' && this.activePlayer.id === 2) {
+      this.initiateBotTurn();
+    } else {
+      if (window.soundFX) {
+        window.soundFX.playTurnStart(this.activePlayer.id === 1);
+      }
     }
   }
 
@@ -403,13 +422,25 @@ class TankBattleGame {
         title.style.color = '#FFA300';
         subtitle.innerText = 'Both tanks were obliterated!';
       } else if (this.winner === 'PLAYER 1') {
-        title.innerText = 'PLAYER 1 VICTORIOUS!';
-        title.style.color = '#00E436';
-        subtitle.innerText = 'Player 2 was reduced to smoking scrap metal.';
+        if (this.gameMode === 'pvb') {
+          title.innerText = 'VICTORY OVER THE BOT!';
+          title.style.color = '#00E436';
+          subtitle.innerText = `You out-gunned the ${this.botDifficulty.toUpperCase()} AI and reduced it to scrap!`;
+        } else {
+          title.innerText = 'PLAYER 1 VICTORIOUS!';
+          title.style.color = '#00E436';
+          subtitle.innerText = 'Player 2 was reduced to smoking scrap metal.';
+        }
       } else {
-        title.innerText = 'PLAYER 2 VICTORIOUS!';
-        title.style.color = '#FF004D';
-        subtitle.innerText = 'Player 1 was reduced to smoking scrap metal.';
+        if (this.gameMode === 'pvb') {
+          title.innerText = 'DEFEATED BY BOT!';
+          title.style.color = '#FF004D';
+          subtitle.innerText = `The ${this.botDifficulty.toUpperCase()} AI eliminated your tank with calculating precision.`;
+        } else {
+          title.innerText = 'PLAYER 2 VICTORIOUS!';
+          title.style.color = '#FF004D';
+          subtitle.innerText = 'Player 1 was reduced to smoking scrap metal.';
+        }
       }
       modal.classList.remove('hidden');
     }
@@ -539,7 +570,7 @@ class TankBattleGame {
    */
   drawAimGuide(ctx, tank) {
     const muzzle = tank.getMuzzlePosition();
-    const speed = (2.2 + (tank.power / 100) * 8.2);
+    const speed = (2.2 + (tank.power / 100) * 8.2) * 1.2;
     const vx0 = Math.cos(muzzle.angle) * speed;
     const vy0 = Math.sin(muzzle.angle) * speed;
 
@@ -596,15 +627,47 @@ class TankBattleGame {
     const turnBanner = document.getElementById('turnBanner');
     const p1Card = document.getElementById('p1Card');
     const p2Card = document.getElementById('p2Card');
+    const isBotTurn = this.gameMode === 'pvb' && this.activePlayer && this.activePlayer.id === 2;
 
     if (turnBanner && this.activePlayer) {
       const isP1 = this.activePlayer.id === 1;
-      turnBanner.innerText = isP1 ? "PLAYER 1'S TURN" : "PLAYER 2'S TURN";
-      turnBanner.className = isP1 ? 'turn-p1' : 'turn-p2';
+      if (isP1) {
+        turnBanner.innerText = "PLAYER 1'S TURN";
+        turnBanner.className = 'turn-banner turn-p1';
+      } else {
+        if (this.gameMode === 'pvb') {
+          const diffLabels = { easy: 'RECRUIT', medium: 'VETERAN', hard: 'ELITE' };
+          const diffText = diffLabels[this.botDifficulty] || 'BOT';
+          if (this.botState === 'THINKING') {
+            turnBanner.innerText = `🤖 BOT THINKING [${diffText}]...`;
+          } else if (this.botState === 'DRIVING') {
+            turnBanner.innerText = `🤖 BOT MOVING [${diffText}]...`;
+          } else if (this.botState === 'AIMING') {
+            turnBanner.innerText = `🤖 BOT AIMING [${diffText}]...`;
+          } else {
+            turnBanner.innerText = `🤖 BOT'S TURN [${diffText}]`;
+          }
+        } else {
+          turnBanner.innerText = "PLAYER 2'S TURN";
+        }
+        turnBanner.className = 'turn-banner turn-p2';
+      }
 
       if (p1Card && p2Card) {
         p1Card.classList.toggle('active-player', isP1);
         p2Card.classList.toggle('active-player', !isP1);
+      }
+    }
+
+    if (p2Card) {
+      const p2HeaderName = p2Card.querySelector('.p-name');
+      if (p2HeaderName) {
+        if (this.gameMode === 'pvb') {
+          const diffLabels = { easy: 'RECRUIT', medium: 'VETERAN', hard: 'ELITE' };
+          p2HeaderName.innerText = `🤖 BOT [${diffLabels[this.botDifficulty] || 'BOT'}] (RED)`;
+        } else {
+          p2HeaderName.innerText = `🟥 P2 (RED)`;
+        }
       }
     }
 
@@ -649,7 +712,7 @@ class TankBattleGame {
     // 7. Fire Button Status
     const fireBtn = document.getElementById('fireBtn');
     if (fireBtn) {
-      if (this.state === 'PLAYER_TURN') {
+      if (this.state === 'PLAYER_TURN' && !isBotTurn) {
         fireBtn.disabled = false;
         fireBtn.classList.remove('disabled');
       } else {
@@ -693,6 +756,7 @@ class TankBattleGame {
 
   selectWeapon(weaponId) {
     if (!this.activePlayer || this.state !== 'PLAYER_TURN') return;
+    if (this.isBotTurn()) return;
     if (this.activePlayer.inventory[weaponId] <= 0) return;
 
     this.activePlayer.selectedWeapon = weaponId;
@@ -712,16 +776,19 @@ class TankBattleGame {
 
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
-        this.fire();
+        if (!this.isBotTurn()) this.fire();
       }
 
-      // Quick Weapon hotkeys: 1 - 6
-      if (e.code === 'Digit1') this.selectWeapon('standard');
-      if (e.code === 'Digit2') this.selectWeapon('nuke');
-      if (e.code === 'Digit3') this.selectWeapon('mirv');
-      if (e.code === 'Digit4') this.selectWeapon('dirt');
-      if (e.code === 'Digit5') this.selectWeapon('bouncy');
-      if (e.code === 'Digit6') this.selectWeapon('sniper');
+      // Quick Weapon hotkeys: 1 - 7
+      if (!this.isBotTurn()) {
+        if (e.code === 'Digit1') this.selectWeapon('standard');
+        if (e.code === 'Digit2') this.selectWeapon('nuke');
+        if (e.code === 'Digit3') this.selectWeapon('mirv');
+        if (e.code === 'Digit4') this.selectWeapon('dirt');
+        if (e.code === 'Digit5') this.selectWeapon('bouncy');
+        if (e.code === 'Digit6') this.selectWeapon('sniper');
+        if (e.code === 'Digit7') this.selectWeapon('drill');
+      }
 
       // Restart key
       if (e.code === 'KeyR' && (e.ctrlKey || e.metaKey || this.state === 'GAME_OVER')) {
@@ -760,6 +827,7 @@ class TankBattleGame {
 
       const onStart = (e) => {
         e.preventDefault();
+        if (this.isBotTurn()) return;
         if (window.soundFX) window.soundFX.ensureContext();
         startFn();
       };
@@ -792,6 +860,7 @@ class TankBattleGame {
     const angleSlider = document.getElementById('angleSlider');
     if (angleSlider) {
       angleSlider.addEventListener('input', (e) => {
+        if (this.isBotTurn()) return;
         if (this.activePlayer) {
           this.activePlayer.angle = parseFloat(e.target.value);
           this.updateHUD();
@@ -803,6 +872,7 @@ class TankBattleGame {
     const powerSlider = document.getElementById('powerSlider');
     if (powerSlider) {
       powerSlider.addEventListener('input', (e) => {
+        if (this.isBotTurn()) return;
         if (this.activePlayer) {
           this.activePlayer.power = parseFloat(e.target.value);
           this.updateHUD();
@@ -814,6 +884,7 @@ class TankBattleGame {
     const fireBtn = document.getElementById('fireBtn');
     if (fireBtn) {
       fireBtn.addEventListener('click', () => {
+        if (this.isBotTurn()) return;
         if (window.soundFX) window.soundFX.ensureContext();
         this.fire();
       });
@@ -825,6 +896,7 @@ class TankBattleGame {
       const card = document.getElementById(`wcard-${wId}`);
       if (card) {
         card.addEventListener('click', () => {
+          if (this.isBotTurn()) return;
           if (window.soundFX) window.soundFX.ensureContext();
           this.selectWeapon(wId);
         });
@@ -878,10 +950,33 @@ class TankBattleGame {
       });
     }
 
+    // Mode Buttons (PvP vs PvB)
+    const btnModePvP = document.getElementById('btnModePvP');
+    const btnModePvB = document.getElementById('btnModePvB');
+    if (btnModePvP) {
+      btnModePvP.addEventListener('click', () => {
+        this.setGameMode('pvp');
+      });
+    }
+    if (btnModePvB) {
+      btnModePvB.addEventListener('click', () => {
+        this.setGameMode('pvb');
+      });
+    }
+
+    // Bot Difficulty Buttons
+    const diffButtons = document.querySelectorAll('.btn-diff');
+    diffButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const level = btn.dataset.level;
+        if (level) this.setBotDifficulty(level);
+      });
+    });
+
     // Canvas pointer/touch aiming
     let isAimingOnCanvas = false;
     const handleCanvasAim = (clientX, clientY) => {
-      if (this.state !== 'PLAYER_TURN' || !this.activePlayer) return;
+      if (this.state !== 'PLAYER_TURN' || !this.activePlayer || this.isBotTurn()) return;
       const rect = this.canvas.getBoundingClientRect();
       const scaleX = this.width / rect.width;
       const scaleY = this.height / rect.height;
@@ -911,6 +1006,7 @@ class TankBattleGame {
     };
 
     this.canvas.addEventListener('mousedown', (e) => {
+      if (this.isBotTurn()) return;
       isAimingOnCanvas = true;
       if (window.soundFX) window.soundFX.ensureContext();
       handleCanvasAim(e.clientX, e.clientY);
@@ -927,6 +1023,7 @@ class TankBattleGame {
     });
 
     this.canvas.addEventListener('touchstart', (e) => {
+      if (this.isBotTurn()) return;
       if (e.touches.length > 0) {
         isAimingOnCanvas = true;
         if (window.soundFX) window.soundFX.ensureContext();
@@ -979,9 +1076,336 @@ class TankBattleGame {
       if (window.soundFX) window.soundFX.playClick(600);
     }
   }
+
+  isBotTurn() {
+    return this.gameMode === 'pvb' && this.activePlayer && this.activePlayer.id === 2;
+  }
+
+  setGameMode(mode) {
+    this.gameMode = mode;
+    const btnPvP = document.getElementById('btnModePvP');
+    const btnPvB = document.getElementById('btnModePvB');
+    const botDiffGroup = document.getElementById('botDiffGroup');
+
+    if (btnPvP) btnPvP.classList.toggle('active', mode === 'pvp');
+    if (btnPvB) btnPvB.classList.toggle('active', mode === 'pvb');
+    if (botDiffGroup) botDiffGroup.classList.toggle('disabled', mode === 'pvp');
+
+    if (window.soundFX) window.soundFX.playClick(700);
+
+    // If switched to PvB during Player 2's turn, initiate bot turn
+    if (mode === 'pvb' && this.activePlayer && this.activePlayer.id === 2 && this.state === 'PLAYER_TURN') {
+      this.initiateBotTurn();
+    } else if (mode === 'pvp' && this.activePlayer && this.activePlayer.id === 2) {
+      this.botState = 'IDLE';
+    }
+
+    this.updateHUD();
+  }
+
+  setBotDifficulty(level) {
+    this.botDifficulty = level;
+    const diffButtons = document.querySelectorAll('.btn-diff');
+    diffButtons.forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.level === level);
+    });
+
+    if (window.soundFX) window.soundFX.playClick(850);
+
+    // If bot currently thinking, recalculate aim
+    if (this.botState === 'THINKING') {
+      this.botTimer = 15;
+    }
+
+    this.updateHUD();
+  }
+
+  initiateBotTurn() {
+    this.botState = 'THINKING';
+    this.botTimer = 35; // ~0.6s
+    this.botDriveDir = 0;
+    this.botDriveFrames = 0;
+    if (window.soundFX) {
+      window.soundFX.playTurnStart(false);
+    }
+    this.updateHUD();
+  }
+
+  updateBot() {
+    const tank = this.activePlayer;
+    if (!tank || tank.isDead) return;
+
+    if (this.botState === 'THINKING') {
+      this.botTimer--;
+      if (this.botTimer <= 0) {
+        // 1. Select tactical weapon
+        this.botSelectWeapon();
+
+        // 2. Compute ballistic trajectory
+        const aim = this.calculateBotAim(tank.selectedWeapon);
+        this.botTargetAngle = aim.angle;
+        this.botTargetPower = aim.power;
+
+        // 3. Check if repositioning is beneficial
+        const shouldDrive = (this.botDifficulty === 'hard' || this.botDifficulty === 'medium') &&
+                            tank.fuel >= 20 &&
+                            (Math.abs(tank.slopeAngle) > 0.35 || Math.random() < 0.25);
+
+        if (shouldDrive) {
+          this.botDriveDir = tank.x > 450 ? (Math.random() < 0.6 ? -1 : 1) : (Math.random() < 0.6 ? 1 : -1);
+          this.botDriveFrames = 15 + Math.floor(Math.random() * 20);
+          this.botState = 'DRIVING';
+        } else {
+          this.botState = 'AIMING';
+        }
+        this.updateHUD();
+      }
+    } else if (this.botState === 'DRIVING') {
+      this.botDriveFrames--;
+      const moved = tank.drive(this.botDriveDir, this.terrain);
+      if (moved && window.soundFX) {
+        window.soundFX.startEngine();
+      }
+      this.updateHUD();
+
+      if (this.botDriveFrames <= 0 || !moved || tank.fuel <= 5) {
+        if (window.soundFX) window.soundFX.stopEngine();
+        // Recalculate aim from new position
+        const aim = this.calculateBotAim(tank.selectedWeapon);
+        this.botTargetAngle = aim.angle;
+        this.botTargetPower = aim.power;
+        this.botState = 'AIMING';
+        this.updateHUD();
+      }
+    } else if (this.botState === 'AIMING') {
+      // Smoothly rotate turret
+      const angleDiff = this.botTargetAngle - tank.angle;
+      if (Math.abs(angleDiff) > 1.2) {
+        tank.angle += Math.sign(angleDiff) * 1.2;
+      } else {
+        tank.angle = this.botTargetAngle;
+      }
+
+      // Smoothly adjust power
+      const powerDiff = this.botTargetPower - tank.power;
+      if (Math.abs(powerDiff) > 1.5) {
+        tank.power += Math.sign(powerDiff) * 1.5;
+      } else {
+        tank.power = this.botTargetPower;
+      }
+
+      this.updateHUD();
+
+      // Check if target aim reached
+      if (Math.abs(angleDiff) <= 1.2 && Math.abs(powerDiff) <= 1.5) {
+        tank.angle = this.botTargetAngle;
+        tank.power = this.botTargetPower;
+        this.botState = 'FIRING';
+        this.botTimer = 18; // ~0.3s pause before shooting
+        this.updateHUD();
+      }
+    } else if (this.botState === 'FIRING') {
+      this.botTimer--;
+      if (this.botTimer <= 0) {
+        this.botState = 'IDLE';
+        this.fire();
+      }
+    }
+  }
+
+  botSelectWeapon() {
+    const tank = this.activePlayer;
+    const inv = tank.inventory;
+    const target = this.player1;
+
+    // Check if middle hill peak is high
+    let middlePeakHeight = 999;
+    for (let x = 220; x <= 420; x += 20) {
+      const sy = this.terrain.getSurfaceY(x);
+      if (sy < middlePeakHeight) middlePeakHeight = sy;
+    }
+    const isObstructed = middlePeakHeight < Math.min(tank.y, target.y) - 15;
+
+    let chosen = 'standard';
+
+    if (this.botDifficulty === 'hard') {
+      // Elite AI: smart tactical weapon pick
+      if (isObstructed && inv.drill > 0 && Math.random() < 0.75) {
+        chosen = 'drill';
+      } else if (target.hp <= 55 && inv.nuke > 0) {
+        chosen = 'nuke';
+      } else if (inv.nuke > 0 && Math.random() < 0.4) {
+        chosen = 'nuke';
+      } else if (inv.mirv > 0 && Math.random() < 0.5) {
+        chosen = 'mirv';
+      } else if (!isObstructed && inv.sniper > 0 && Math.random() < 0.4) {
+        chosen = 'sniper';
+      } else if (inv.bouncy > 0 && Math.random() < 0.3) {
+        chosen = 'bouncy';
+      } else if (inv.drill > 0 && Math.random() < 0.4) {
+        chosen = 'drill';
+      }
+    } else if (this.botDifficulty === 'medium') {
+      // Veteran AI: good variety
+      if (isObstructed && inv.drill > 0 && Math.random() < 0.5) {
+        chosen = 'drill';
+      } else if (inv.mirv > 0 && Math.random() < 0.35) {
+        chosen = 'mirv';
+      } else if (inv.nuke > 0 && Math.random() < 0.25) {
+        chosen = 'nuke';
+      } else if (inv.bouncy > 0 && Math.random() < 0.3) {
+        chosen = 'bouncy';
+      } else if (inv.sniper > 0 && Math.random() < 0.25) {
+        chosen = 'sniper';
+      } else if (inv.drill > 0 && Math.random() < 0.3) {
+        chosen = 'drill';
+      }
+    } else {
+      // Recruit AI: mostly standard, occasional bounce/dirt/drill
+      if (inv.bouncy > 0 && Math.random() < 0.25) {
+        chosen = 'bouncy';
+      } else if (inv.dirt > 0 && Math.random() < 0.2) {
+        chosen = 'dirt';
+      } else if (inv.drill > 0 && Math.random() < 0.2) {
+        chosen = 'drill';
+      }
+    }
+
+    if (inv[chosen] <= 0) {
+      chosen = 'standard';
+    }
+
+    tank.selectedWeapon = chosen;
+    if (window.soundFX) window.soundFX.playWeaponSelect();
+  }
+
+  calculateBotAim(weaponId) {
+    const weaponDef = WEAPONS[weaponId] || WEAPONS.standard;
+    const shooter = this.activePlayer;
+    const target = this.player1;
+
+    let windConsidered = this.wind;
+    let angleNoise = 0;
+    let powerNoise = 0;
+
+    if (this.botDifficulty === 'easy') {
+      if (Math.random() < 0.65) windConsidered = 0;
+      angleNoise = (Math.random() - 0.5) * 18;
+      powerNoise = (Math.random() - 0.5) * 22;
+    } else if (this.botDifficulty === 'medium') {
+      windConsidered *= 0.75 + Math.random() * 0.5;
+      angleNoise = (Math.random() - 0.5) * 6;
+      powerNoise = (Math.random() - 0.5) * 8;
+    } else {
+      angleNoise = (Math.random() - 0.5) * 1.5;
+      powerNoise = (Math.random() - 0.5) * 2.0;
+    }
+
+    let bestAngle = 45;
+    let bestPower = 65;
+    let bestDist = 999999;
+    let foundHit = false;
+
+    const minAngle = weaponDef.isDrill ? 14 : 26;
+    const maxAngle = weaponDef.isDrill ? 65 : 76;
+    const angleStep = 2;
+    const powerStep = 2;
+
+    for (let a = minAngle; a <= maxAngle; a += angleStep) {
+      for (let p = 30; p <= 100; p += powerStep) {
+        const sim = this.simulateBotTrajectory(
+          shooter.x,
+          shooter.y,
+          a,
+          p,
+          weaponDef,
+          windConsidered,
+          target
+        );
+
+        if (sim.hitTarget) {
+          bestAngle = a;
+          bestPower = p;
+          bestDist = 0;
+          foundHit = true;
+          break;
+        } else if (sim.minDistance < bestDist) {
+          bestDist = sim.minDistance;
+          bestAngle = a;
+          bestPower = p;
+        }
+      }
+      if (foundHit && this.botDifficulty === 'hard') break;
+    }
+
+    const finalAngle = Math.max(5, Math.min(175, Math.round(bestAngle + angleNoise)));
+    const finalPower = Math.max(10, Math.min(100, Math.round(bestPower + powerNoise)));
+
+    return { angle: finalAngle, power: finalPower };
+  }
+
+  simulateBotTrajectory(startX, startY, angleDeg, powerPct, weaponDef, wind, targetTank) {
+    const rad = (angleDeg * Math.PI) / 180;
+    const worldAngle = -Math.PI + rad;
+    const barrelLen = 13;
+    let x = startX + Math.cos(worldAngle) * barrelLen;
+    let y = startY - 7 + Math.sin(worldAngle) * barrelLen;
+
+    const speed = (2.2 + (powerPct / 100) * 8.2) * 1.2 * weaponDef.speedMult;
+    let vx = Math.cos(worldAngle) * speed;
+    let vy = Math.sin(worldAngle) * speed;
+
+    const windForce = wind * 0.0075;
+    const baseGravity = 0.22 * weaponDef.gravityMult;
+
+    let minDistance = 99999;
+    let hitTarget = false;
+
+    for (let s = 0; s < 260; s++) {
+      x += vx;
+      y += vy;
+      vx += windForce;
+      vy += baseGravity;
+      vx *= 0.999;
+      vy *= 0.999;
+
+      if (x < -30 || x > this.terrain.width + 30 || y > this.terrain.height + 20) {
+        break;
+      }
+
+      const dist = Math.hypot(x - targetTank.x, y - (targetTank.y - 6));
+      if (dist < minDistance) minDistance = dist;
+
+      if (
+        x >= targetTank.x - 9 &&
+        x <= targetTank.x + 9 &&
+        y >= targetTank.y - 12 &&
+        y <= targetTank.y + 2
+      ) {
+        hitTarget = true;
+        minDistance = 0;
+        break;
+      }
+
+      if (weaponDef.isDrill && s > 8 && dist <= 16) {
+        hitTarget = true;
+        minDistance = 0;
+        break;
+      }
+
+      if (this.terrain.isSolid(x, y)) {
+        if (!weaponDef.isDrill) {
+          break;
+        }
+      }
+    }
+
+    return { hitTarget, minDistance };
+  }
 }
 
 // Instantiate game when DOM is loaded
+window.TankBattleGame = TankBattleGame;
 window.addEventListener('DOMContentLoaded', () => {
   window.game = new TankBattleGame();
 });
