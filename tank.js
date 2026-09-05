@@ -108,7 +108,11 @@ class Tank {
     const yRight = terrain.getSurfaceY(rightX);
     const yMid = terrain.getSurfaceY(midX);
 
-    const groundY = Math.max(yMid, Math.min(yLeft, yRight));
+    // Tread-supported ground level: The tank chassis rests on its tracks (yLeft & yRight).
+    // If straddling a crater, it bridges across the tracks. If perched on a mound, it rests on the mound.
+    const trackMidY = (yLeft + yRight) * 0.5;
+    const rawGroundY = Math.min(trackMidY, yMid);
+    const groundY = Math.min(terrain.height - 4, rawGroundY);
 
     // Check if tank is airborne / unsupported by ground
     if (this.y < groundY - 1) {
@@ -233,6 +237,8 @@ class Tank {
    */
   triggerDeath() {
     this.isDead = true;
+    this.isFalling = false; // Always clear falling flag on death to prevent state hangs
+    this.fallDistance = 0;
     this.deathTimer = 0;
     this.deathExplosionsLeft = 6;
 
@@ -252,10 +258,29 @@ class Tank {
   }
 
   /**
-   * Multi-stage death explosion animation
+   * Multi-stage death explosion animation & wreck settling
    */
   updateDeathSequence(terrain, particleSys) {
     this.deathTimer++;
+
+    // Settle charred wreck to ground if ground below it collapsed or was blown away
+    if (terrain) {
+      const midX = Math.max(0, Math.min(terrain.width - 1, Math.round(this.x)));
+      const groundY = Math.min(terrain.height - 4, terrain.getSurfaceY(midX));
+      if (this.y < groundY - 1) {
+        this.vy = (this.vy || 0) + 0.35;
+        this.y += this.vy;
+        if (this.y >= groundY) {
+          this.y = groundY;
+          this.vy = 0;
+          this.isFalling = false;
+        }
+      } else {
+        this.y = groundY;
+        this.vy = 0;
+        this.isFalling = false;
+      }
+    }
 
     // Chain explosions around the hull
     if (this.deathExplosionsLeft > 0 && this.deathTimer % 12 === 0) {
@@ -299,8 +324,8 @@ class Tank {
    */
   draw(ctx) {
     ctx.save();
-    ctx.translate(Math.floor(this.x), Math.floor(this.y));
-    ctx.rotate(this.slopeAngle);
+    ctx.translate(Math.floor(this.x || 0), Math.floor(this.y || 0));
+    ctx.rotate(this.slopeAngle || 0);
 
     // If tank is dead, render charred smoking wreck
     if (this.isDead) {
@@ -357,13 +382,13 @@ class Tank {
     // 4. Rotating Barrel with Recoil
     const aimWorld = this.getWorldAimAngle();
     // Angle relative to the tank chassis (subtract slopeAngle)
-    const barrelRelAngle = aimWorld - this.slopeAngle;
+    const barrelRelAngle = (aimWorld || 0) - (this.slopeAngle || 0);
 
     ctx.save();
     ctx.translate(0, -9);
-    ctx.rotate(barrelRelAngle);
+    ctx.rotate(barrelRelAngle || 0);
 
-    const barrelLength = 11 - this.recoil;
+    const barrelLength = Math.max(4, 11 - (this.recoil || 0));
     // Barrel shadow / outline
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, -1.5, barrelLength + 1, 3);
@@ -396,9 +421,10 @@ class Tank {
 
   drawDetachedTurret(ctx) {
     const dt = this.detachedTurret;
+    if (!dt) return;
     ctx.save();
-    ctx.translate(Math.floor(dt.x), Math.floor(dt.y));
-    ctx.rotate(dt.rot);
+    ctx.translate(Math.floor(dt.x || 0), Math.floor(dt.y || 0));
+    ctx.rotate(dt.rot || 0);
 
     // Blown off turret dome
     ctx.fillStyle = '#000000';
