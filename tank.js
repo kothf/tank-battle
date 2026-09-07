@@ -129,9 +129,9 @@ class Tank {
         this.vy = 0;
         this.fallDistance = 0;
 
-        // Fall damage if dropped more than 16 pixels
-        if (totalFell > 16) {
-          const dmg = Math.min(60, Math.floor((totalFell - 14) * 1.8));
+        // Fall damage if dropped more than 18 pixels
+        if (totalFell > 18) {
+          const dmg = Math.min(30, Math.floor((totalFell - 16) * 0.8));
           if (dmg > 0) {
             this.takeDamage(dmg, 'fall');
             if (particleSys) {
