@@ -78,10 +78,11 @@ class Tank {
    * Get muzzle tip position in world coordinates for spawning projectile
    */
   getMuzzlePosition() {
-    const turretBaseX = this.x;
-    const turretBaseY = this.y - 7;
+    const slope = this.slopeAngle || 0;
+    const turretBaseX = this.x + 9 * Math.sin(slope);
+    const turretBaseY = this.y - 9 * Math.cos(slope);
     const worldAngle = this.getWorldAimAngle();
-    const barrelLen = 13 - this.recoil;
+    const barrelLen = 12 - (this.recoil || 0);
 
     return {
       x: turretBaseX + Math.cos(worldAngle) * barrelLen,
