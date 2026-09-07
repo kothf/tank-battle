@@ -56,6 +56,14 @@ class TankBattleGame {
     this.botTargetPower = 65;
     this.botDriveDir = 0;
     this.botDriveFrames = 0;
+    this.botLastAngle = 45;
+    this.botLastPower = 65;
+    this.botLastBotX = null;
+    this.botLastBotY = null;
+    this.botLastPlayerX = null;
+    this.botLastPlayerY = null;
+    this.botLastBotHp = null;
+    this.botLastPlayerHp = null;
 
     this.initEnvironment();
     this.initTanks();
@@ -145,6 +153,14 @@ class TankBattleGame {
     this.player2.resetTurn();
 
     this.botState = 'IDLE';
+    this.botLastAngle = 45;
+    this.botLastPower = 65;
+    this.botLastBotX = null;
+    this.botLastBotY = null;
+    this.botLastPlayerX = null;
+    this.botLastPlayerY = null;
+    this.botLastBotHp = null;
+    this.botLastPlayerHp = null;
     this.activePlayer = this.player1;
     this.randomizeWind();
 
@@ -310,6 +326,18 @@ class TankBattleGame {
     // Consume ammunition
     if (tank.inventory[weaponId] !== Infinity) {
       tank.inventory[weaponId]--;
+    }
+
+    // Save bot state for stable aim tracking across turns
+    if (tank.id === 2) {
+      this.botLastAngle = tank.angle;
+      this.botLastPower = tank.power;
+      this.botLastBotX = tank.x;
+      this.botLastBotY = tank.y;
+      this.botLastPlayerX = this.player1.x;
+      this.botLastPlayerY = this.player1.y;
+      this.botLastBotHp = tank.hp;
+      this.botLastPlayerHp = this.player1.hp;
     }
 
     // Muzzle position & trajectory angle
@@ -575,27 +603,38 @@ class TankBattleGame {
    */
   drawAimGuide(ctx, tank) {
     const muzzle = tank.getMuzzlePosition();
-    const speed = (2.2 + (tank.power / 100) * 8.2) * 1.2;
-    const vx0 = Math.cos(muzzle.angle) * speed;
-    const vy0 = Math.sin(muzzle.angle) * speed;
+    const weaponDef = WEAPONS[tank.selectedWeapon] || WEAPONS.standard;
+    const speed = (2.2 + (tank.power / 100) * 8.2) * 1.2 * weaponDef.speedMult;
+    let vx = Math.cos(muzzle.angle) * speed;
+    let vy = Math.sin(muzzle.angle) * speed;
+
+    const windForce = this.wind * 0.0075;
+    const baseGravity = 0.22 * weaponDef.gravityMult;
 
     ctx.save();
-    const dotCount = 5;
     let px = muzzle.x;
     let py = muzzle.y;
-    let vx = vx0;
-    let vy = vy0;
+    const totalFrames = 30;
 
-    for (let step = 1; step <= dotCount; step++) {
-      px += vx * 2.5;
-      py += vy * 2.5;
-      vx += this.wind * 0.0075 * 2.5;
-      vy += 0.22 * 2.5;
+    for (let f = 1; f <= totalFrames; f++) {
+      vx += windForce;
+      vy += baseGravity;
+      vx *= 0.999;
+      vy *= 0.999;
+      px += vx;
+      py += vy;
 
-      const alpha = 1.0 - (step / (dotCount + 1));
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = tank.id === 1 ? '#00E436' : '#FF004D';
-      ctx.fillRect(Math.floor(px) - 1, Math.floor(py) - 1, 2, 2);
+      if (this.terrain.isSolid(px, py) || px < -20 || px > this.width + 20 || py > this.height) {
+        break;
+      }
+
+      // Draw dot every 2 frames for a clean, non-cluttered trajectory arc
+      if (f % 2 === 0) {
+        const alpha = Math.max(0.2, 1.0 - (f / (totalFrames + 4)) * 0.8);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = tank.id === 1 ? '#00E436' : '#FF004D';
+        ctx.fillRect(Math.floor(px) - 1, Math.floor(py) - 1, 2, 2);
+      }
     }
     ctx.restore();
   }
@@ -778,6 +817,10 @@ class TankBattleGame {
       if (window.soundFX) window.soundFX.ensureContext();
 
       this.keys[e.code] = true;
+
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+      }
 
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
@@ -990,7 +1033,7 @@ class TankBattleGame {
 
       const tank = this.activePlayer;
       const dx = mx - tank.x;
-      const dy = my - (tank.y - 7);
+      const dy = my - (tank.y - 9);
 
       let worldAngle = Math.atan2(dy, dx);
       let relDeg;
@@ -1012,9 +1055,22 @@ class TankBattleGame {
 
     this.canvas.addEventListener('mousedown', (e) => {
       if (this.isBotTurn()) return;
-      isAimingOnCanvas = true;
-      if (window.soundFX) window.soundFX.ensureContext();
-      handleCanvasAim(e.clientX, e.clientY);
+      const rect = this.canvas.getBoundingClientRect();
+      const scaleX = this.width / rect.width;
+      const scaleY = this.height / rect.height;
+      const mx = (e.clientX - rect.left) * scaleX;
+      const my = (e.clientY - rect.top) * scaleY;
+      const tank = this.activePlayer;
+      if (!tank) return;
+
+      // Only initiate canvas aiming if clicking within interactive range of the active tank (~150px)
+      // This prevents accidental clicks elsewhere on screen from warping the barrel angle.
+      const distToTank = Math.hypot(mx - tank.x, my - (tank.y - 9));
+      if (distToTank <= 150) {
+        isAimingOnCanvas = true;
+        if (window.soundFX) window.soundFX.ensureContext();
+        handleCanvasAim(e.clientX, e.clientY);
+      }
     });
 
     window.addEventListener('mousemove', (e) => {
@@ -1030,9 +1086,20 @@ class TankBattleGame {
     this.canvas.addEventListener('touchstart', (e) => {
       if (this.isBotTurn()) return;
       if (e.touches.length > 0) {
-        isAimingOnCanvas = true;
-        if (window.soundFX) window.soundFX.ensureContext();
-        handleCanvasAim(e.touches[0].clientX, e.touches[0].clientY);
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.width / rect.width;
+        const scaleY = this.height / rect.height;
+        const mx = (e.touches[0].clientX - rect.left) * scaleX;
+        const my = (e.touches[0].clientY - rect.top) * scaleY;
+        const tank = this.activePlayer;
+        if (!tank) return;
+
+        const distToTank = Math.hypot(mx - tank.x, my - (tank.y - 9));
+        if (distToTank <= 150) {
+          isAimingOnCanvas = true;
+          if (window.soundFX) window.soundFX.ensureContext();
+          handleCanvasAim(e.touches[0].clientX, e.touches[0].clientY);
+        }
       }
     }, { passive: true });
 
@@ -1143,18 +1210,34 @@ class TankBattleGame {
     if (this.botState === 'THINKING') {
       this.botTimer--;
       if (this.botTimer <= 0) {
-        // 1. Select tactical weapon
-        this.botSelectWeapon();
+        // Detect if either tank moved or took damage since bot's last shot
+        const botMoved = this.botLastBotX !== null && (
+          Math.abs(tank.x - this.botLastBotX) > 2.0 ||
+          Math.abs(tank.y - this.botLastBotY) > 2.0
+        );
+        const playerMoved = this.botLastPlayerX !== null && (
+          Math.abs(this.player1.x - this.botLastPlayerX) > 2.0 ||
+          Math.abs(this.player1.y - this.botLastPlayerY) > 2.0
+        );
+        const botHit = this.botLastBotHp !== null && tank.hp < this.botLastBotHp;
+        const playerHit = this.botLastPlayerHp !== null && this.player1.hp < this.botLastPlayerHp;
+        const situationChanged = (this.botLastBotX === null) || botMoved || playerMoved || botHit || playerHit;
 
-        // 2. Compute ballistic trajectory
-        const aim = this.calculateBotAim(tank.selectedWeapon);
+        // 1. Select tactical weapon (only pick new weapon if situation changed or current weapon empty)
+        if (situationChanged || tank.inventory[tank.selectedWeapon] <= 0) {
+          this.botSelectWeapon();
+        }
+
+        // 2. Compute ballistic trajectory (retains exact angle if neither tank moved nor was hit)
+        const aim = this.calculateBotAim(tank.selectedWeapon, situationChanged);
         this.botTargetAngle = aim.angle;
         this.botTargetPower = aim.power;
 
-        // 3. Check if repositioning is beneficial
-        const shouldDrive = (this.botDifficulty === 'hard' || this.botDifficulty === 'medium') &&
+        // 3. Check if repositioning is beneficial (only drive if hit or steep slope, never randomly)
+        const shouldDrive = situationChanged &&
+                            (this.botDifficulty === 'hard' || this.botDifficulty === 'medium') &&
                             tank.fuel >= 20 &&
-                            (Math.abs(tank.slopeAngle) > 0.35 || Math.random() < 0.25);
+                            (botHit || Math.abs(tank.slopeAngle) > 0.4);
 
         if (shouldDrive) {
           this.botDriveDir = tank.x > 450 ? (Math.random() < 0.6 ? -1 : 1) : (Math.random() < 0.6 ? 1 : -1);
@@ -1176,7 +1259,7 @@ class TankBattleGame {
       if (this.botDriveFrames <= 0 || !moved || tank.fuel <= 5) {
         if (window.soundFX) window.soundFX.stopEngine();
         // Recalculate aim from new position
-        const aim = this.calculateBotAim(tank.selectedWeapon);
+        const aim = this.calculateBotAim(tank.selectedWeapon, true);
         this.botTargetAngle = aim.angle;
         this.botTargetPower = aim.power;
         this.botState = 'AIMING';
@@ -1284,7 +1367,7 @@ class TankBattleGame {
     if (window.soundFX) window.soundFX.playWeaponSelect();
   }
 
-  calculateBotAim(weaponId) {
+  calculateBotAim(weaponId, situationChanged = true) {
     const weaponDef = WEAPONS[weaponId] || WEAPONS.standard;
     const shooter = this.activePlayer;
     const target = this.player1;
@@ -1295,17 +1378,50 @@ class TankBattleGame {
 
     if (this.botDifficulty === 'easy') {
       if (Math.random() < 0.65) windConsidered = 0;
-      angleNoise = (Math.random() - 0.5) * 18;
-      powerNoise = (Math.random() - 0.5) * 22;
+      angleNoise = (Math.random() - 0.5) * 16;
+      powerNoise = (Math.random() - 0.5) * 18;
     } else if (this.botDifficulty === 'medium') {
       windConsidered *= 0.75 + Math.random() * 0.5;
-      angleNoise = (Math.random() - 0.5) * 6;
-      powerNoise = (Math.random() - 0.5) * 8;
+      angleNoise = (Math.random() - 0.5) * 5;
+      powerNoise = (Math.random() - 0.5) * 6;
     } else {
-      angleNoise = (Math.random() - 0.5) * 1.5;
-      powerNoise = (Math.random() - 0.5) * 2.0;
+      angleNoise = (Math.random() - 0.5) * 1.2;
+      powerNoise = (Math.random() - 0.5) * 1.5;
     }
 
+    // If neither tank moved nor was hit: retain exact dialed-in barrel angle and only tune power for wind
+    if (!situationChanged && this.botLastAngle !== null) {
+      const fixedAngle = this.botLastAngle;
+      let bestP = this.botLastPower || 65;
+      let minD = 999999;
+      let foundDirect = false;
+
+      for (let p = 20; p <= 100; p++) {
+        const sim = this.simulateBotTrajectory(
+          shooter,
+          fixedAngle,
+          p,
+          weaponDef,
+          windConsidered,
+          target
+        );
+
+        if (sim.hitTarget) {
+          bestP = p;
+          minD = 0;
+          foundDirect = true;
+          break;
+        } else if (sim.minDistance < minD) {
+          minD = sim.minDistance;
+          bestP = p;
+        }
+      }
+
+      const finalPower = Math.max(10, Math.min(100, Math.round(bestP + (foundDirect && this.botDifficulty === 'hard' ? 0 : powerNoise * 0.5))));
+      return { angle: fixedAngle, power: finalPower };
+    }
+
+    // Full search over angles and power when hit or moved
     let bestAngle = 45;
     let bestPower = 65;
     let bestDist = 999999;
@@ -1319,8 +1435,7 @@ class TankBattleGame {
     for (let a = minAngle; a <= maxAngle; a += angleStep) {
       for (let p = 30; p <= 100; p += powerStep) {
         const sim = this.simulateBotTrajectory(
-          shooter.x,
-          shooter.y,
+          shooter,
           a,
           p,
           weaponDef,
@@ -1343,18 +1458,22 @@ class TankBattleGame {
       if (foundHit && this.botDifficulty === 'hard') break;
     }
 
-    const finalAngle = Math.max(5, Math.min(175, Math.round(bestAngle + angleNoise)));
-    const finalPower = Math.max(10, Math.min(100, Math.round(bestPower + powerNoise)));
+    const finalAngle = Math.max(5, Math.min(175, Math.round(bestAngle + (foundHit && this.botDifficulty === 'hard' ? 0 : angleNoise))));
+    const finalPower = Math.max(10, Math.min(100, Math.round(bestPower + (foundHit && this.botDifficulty === 'hard' ? 0 : powerNoise))));
 
     return { angle: finalAngle, power: finalPower };
   }
 
-  simulateBotTrajectory(startX, startY, angleDeg, powerPct, weaponDef, wind, targetTank) {
+  simulateBotTrajectory(shooter, angleDeg, powerPct, weaponDef, wind, targetTank) {
     const rad = (angleDeg * Math.PI) / 180;
-    const worldAngle = -Math.PI + rad;
-    const barrelLen = 13;
-    let x = startX + Math.cos(worldAngle) * barrelLen;
-    let y = startY - 7 + Math.sin(worldAngle) * barrelLen;
+    const worldAngle = shooter.id === 1 ? -rad : (-Math.PI + rad);
+    const slope = shooter.slopeAngle || 0;
+    const turretBaseX = shooter.x + 9 * Math.sin(slope);
+    const turretBaseY = shooter.y - 9 * Math.cos(slope);
+    const barrelLen = 12;
+
+    let x = turretBaseX + Math.cos(worldAngle) * barrelLen;
+    let y = turretBaseY + Math.sin(worldAngle) * barrelLen;
 
     const speed = (2.2 + (powerPct / 100) * 8.2) * 1.2 * weaponDef.speedMult;
     let vx = Math.cos(worldAngle) * speed;
@@ -1366,43 +1485,69 @@ class TankBattleGame {
     let minDistance = 99999;
     let hitTarget = false;
 
-    for (let s = 0; s < 260; s++) {
-      x += vx;
-      y += vy;
+    for (let f = 1; f <= 300; f++) {
+      const prevX = x;
+      const prevY = y;
+
       vx += windForce;
       vy += baseGravity;
       vx *= 0.999;
       vy *= 0.999;
 
-      if (x < -30 || x > this.terrain.width + 30 || y > this.terrain.height + 20) {
-        break;
-      }
+      const targetX = prevX + vx;
+      const targetY = prevY + vy;
+      const dist = Math.hypot(targetX - prevX, targetY - prevY);
+      const steps = Math.max(1, Math.ceil(dist / 2.0));
 
-      const dist = Math.hypot(x - targetTank.x, y - (targetTank.y - 6));
-      if (dist < minDistance) minDistance = dist;
+      let hitSomething = false;
 
-      if (
-        x >= targetTank.x - 9 &&
-        x <= targetTank.x + 9 &&
-        y >= targetTank.y - 12 &&
-        y <= targetTank.y + 2
-      ) {
-        hitTarget = true;
-        minDistance = 0;
-        break;
-      }
+      for (let s = 1; s <= steps; s++) {
+        const interpT = s / steps;
+        const curX = prevX + (targetX - prevX) * interpT;
+        const curY = prevY + (targetY - prevY) * interpT;
 
-      if (weaponDef.isDrill && s > 8 && dist <= 16) {
-        hitTarget = true;
-        minDistance = 0;
-        break;
-      }
-
-      if (this.terrain.isSolid(x, y)) {
-        if (!weaponDef.isDrill) {
+        if (curX < -40 || curX > this.terrain.width + 40 || curY > this.terrain.height + 20) {
+          hitSomething = true;
           break;
         }
+
+        const d = Math.hypot(curX - targetTank.x, curY - (targetTank.y - 6));
+        if (d < minDistance) minDistance = d;
+
+        // Target tank bounding box [x - 9, x + 9] x [y - 12, y + 2]
+        if (
+          curX >= targetTank.x - 9 &&
+          curX <= targetTank.x + 9 &&
+          curY >= targetTank.y - 12 &&
+          curY <= targetTank.y + 2
+        ) {
+          hitTarget = true;
+          minDistance = 0;
+          hitSomething = true;
+          break;
+        }
+
+        // Drill proximity check
+        if (weaponDef.isDrill && f > 6 && d <= 16) {
+          hitTarget = true;
+          minDistance = 0;
+          hitSomething = true;
+          break;
+        }
+
+        // Solid terrain check
+        if (this.terrain.isSolid(curX, curY)) {
+          if (!weaponDef.isDrill) {
+            hitSomething = true;
+            break;
+          }
+        }
       }
+
+      x = targetX;
+      y = targetY;
+
+      if (hitSomething) break;
     }
 
     return { hitTarget, minDistance };
