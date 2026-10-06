@@ -22,8 +22,8 @@ class Tank {
 
     this.maxHp = 100;
     this.hp = 100;
-    this.maxFuel = 80;
-    this.fuel = 80;
+    this.maxFuel = 120;   // wider battlefield: 50% more driving per turn
+    this.fuel = 120;
 
     this.angle = 45; // 0 to 180 degrees (relative to player facing forward)
     this.power = 65; // 5 to 100 percent
@@ -78,6 +78,7 @@ class Tank {
    * Get muzzle tip position in world coordinates for spawning projectile
    */
   getMuzzlePosition() {
+    // turret pivot sits 9 px up the hull's own axis, so it tilts with the slope
     const slope = this.slopeAngle || 0;
     const turretBaseX = this.x + 9 * Math.sin(slope);
     const turretBaseY = this.y - 9 * Math.cos(slope);
@@ -171,7 +172,7 @@ class Tank {
     if (!this.isDead && particleSys && Math.random() < 0.25) {
       if (this.hp <= 25) {
         // Fire & dense smoke
-        particleSys.particles.push({
+        particleSys.push({
           type: 'spark',
           x: this.x + (Math.random() - 0.5) * 8,
           y: this.y - 8,

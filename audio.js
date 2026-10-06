@@ -46,13 +46,66 @@ class SoundFX {
    */
   createNoiseBuffer(duration = 1.0) {
     if (!this.ctx) return null;
+    // White noise is reusable: build each length once instead of per sound
+    this.noiseCache = this.noiseCache || new Map();
+    const key = Math.round(duration * 100);
+    if (this.noiseCache.has(key)) return this.noiseCache.get(key);
     const bufferSize = Math.floor(this.ctx.sampleRate * duration);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const output = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
       output[i] = Math.random() * 2 - 1;
     }
+    this.noiseCache.set(key, buffer);
     return buffer;
+  }
+
+  // Short tone helper for the newer sounds
+  tone(type, f0, f1, dur, vol, delay = 0) {
+    if (this.muted) return;
+    this.ensureContext();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, now);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), now + dur);
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.connect(gain); gain.connect(this.masterGain);
+    osc.start(now); osc.stop(now + dur);
+  }
+
+  // Homing missile acquiring its target: two quick beeps
+  playHomingLock() {
+    this.tone('square', 1320, 1320, 0.06, 0.12);
+    this.tone('square', 1760, 1760, 0.08, 0.12, 0.09);
+  }
+
+  // Napalm splash: filtered noise whoosh
+  playNapalm() {
+    if (this.muted) return;
+    this.ensureContext();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = this.createNoiseBuffer(0.8);
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(300, now);
+    filter.frequency.exponentialRampToValueAtTime(1800, now + 0.25);
+    filter.frequency.exponentialRampToValueAtTime(400, now + 0.8);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+    noise.connect(filter); filter.connect(gain); gain.connect(this.masterGain);
+    noise.start(now); noise.stop(now + 0.8);
+  }
+
+  // Bomber fly-over drone
+  playPlane() {
+    this.tone('sawtooth', 70, 110, 1.4, 0.10);
+    this.tone('sawtooth', 72, 112, 1.4, 0.08, 0.02);
   }
 
   /**
