@@ -2,88 +2,93 @@
 
 ![Retro Tank Battle Screenshot](screenshot.png)
 
-### 🌐 [Play Live Demo on GitHub Pages](https://kothf.github.io/tank-battle/)
+### 🌐 [Play Live Demo on GitHub Pages](https://kothf.github.io/tank-battle/) · [Play on aerocat.tech](https://aerocat.tech/games/tank-battle/)
 
-A complete, retro-styled turn-based tank artillery battle game inspired by classics such as **Scorched Earth**, **Pocket Tanks**, and **Artillery**, built completely with vanilla HTML5, CSS3, modern JavaScript, HTML5 `<canvas>`, and the Web Audio API. Play 2-player local multiplayer or solo against an intelligent AI Bot with selectable skill levels. Zero external dependencies.
+A retro turn-based tank artillery game inspired by **Scorched Earth**, **Pocket Tanks** and **Worms**, built with vanilla HTML5, CSS3, JavaScript, `<canvas>` and the Web Audio API. Play 2-player local multiplayer or solo against an AI bot with three skill levels. Zero external dependencies.
 
 ---
 
 ## 🌟 Key Features
 
-### 1. 🤖 Play With Intelligent Bot (Selectable Skill Levels)
-- **👥 2-Player Local PvP Mode:** Play against a friend on the same device.
-- **🤖 Solo vs AI Bot Mode:** Challenge an autonomous computer opponent.
-- **3 Selectable Skill Levels:**
-  - **🟢 Recruit (Easy):** Relaxed opponent with high aim variance and occasional wind misjudgments; ideal for casual practice.
-  - **🟡 Veteran (Medium):** Competitive opponent with solid ballistic approximation, tactical weapon choice, and wind compensation.
-  - **🔴 Elite (Hard):** Master sniper AI running real-time subterranean & ballistic trajectory simulations, repositioning from bad slopes, and choosing devastating weapons like Nukes, MIRVs, or Tunnel Drills to bypass terrain!
+### 1. 🗺️ Scrolling Battlefield
+- **1800×540 world** (almost three screens wide) seen through a crisp 640×360 pixel view.
+- **Camera** follows your tank while you aim (framing both tanks when they fit), then the shell in flight, then the explosion.
+- **Mouse wheel** zooms, **`V`** shows the whole battlefield, **`C`** re-centres, and the **minimap** (click/drag) lets you look around.
+- **Edge markers** point to off-screen shells (with altitude) and the enemy tank (with distance).
+- Random spawn points on every map; cannon range and fuel sized for the larger field.
 
-### 2. 🎯 Tactical Ballistics & Rebalanced Arsenal
-- **Enhanced Firing Impulse:** High-velocity launch physics allowing projectiles to crest towering mountains and punch through dynamic wind conditions.
-- **Tuned Damage Curve:** Balanced against the 100 HP tank pool (inspired by classic artillery games like *Worms*, *Pocket Tanks*, and *ShellShock Live*) for multi-turn tactical strategy rather than instant one-shot eliminations.
-- **Fair Fall Mechanics:** Scaled cliff fall damage with a safe threshold and 30 HP ceiling to reward terrain destruction while keeping duels competitive.
+### 2. 💣 13-Weapon Arsenal
+Damage is balanced against the 100 HP tank pool for multi-turn duels.
 
-### 3. ⛏️ Brand New Weapon: Tunnel Drill (Subterranean Missile)
-- **Earth Penetration:** Fires straight through solid dirt and rock formations instead of exploding on impact.
-- **Subterranean Carving:** Drills a tunnel through terrain, emitting fiery sparks and stone-grinding sound effects.
-- **Proximity & Contact Trigger:** Explodes with solid direct (32 HP) and splash (20 HP) damage upon reaching or passing directly beneath enemy tanks.
-- **Emerge & Fly:** Can enter a mountain, tunnel through the core, exit into the air on the other side, and strike targets beyond.
+| # | Weapon | Ammo | Behaviour |
+|:-:|:--|:-:|:--|
+| 1 | 💣 Standard Shell | ∞ | Balanced cannon shell (25 direct / 16 splash) |
+| 2 | 🔱 Triple Shot | 3 | Three shells in a 5° spread (14 / 9 each) |
+| 3 | ☢️ Heavy Nuke | 2 | Slow, heavy, 50 px crater (50 / 35), flash and shake |
+| 4 | 💥 MIRV Cluster | 3 | Splits at the apex into 5 bomblets (14 / 10 each) |
+| 5 | 🎆 Funky Bomb | 2 | Bursts on impact into 6 bouncing bomblets |
+| 6 | 🔥 Napalm | 2 | Burning fuel runs downhill and scorches tanks in the pool |
+| 7 | 🎯 Homing Missile | 2 | Locks on at the apex, cruises above the hills, dives on the enemy |
+| 8 | ✈️ Air Strike | 1 | Smoke marker; a bomber drops 5 bombs along the mark |
+| 9 | 🛞 Roller | 3 | Lands and rolls downhill; explodes on a tank, a wall, or when it stops |
+| 0 | ⚽ Bouncy Shot | 3 | Bounces off terrain up to 3 times (28 / 18) |
+| — | ⚡ Sniper Piercer | 2 | Flat, fast slug that pierces hills (35 / 12) |
+| — | ⛏️ Tunnel Drill | 2 | Burrows through mountains; proximity fuse under the enemy (32 / 20) |
+| — | ⛰️ Dirt Bomb | 3 | Raises an earth dome to bury a tank or build a wall |
 
-### 4. Rich Arsenal & Weapon Mechanics
-1. **💣 Standard Shell (Infinite Ammo):** Classic cannon shell with balanced trajectory, direct damage (25 HP), and splash damage (16 HP).
-2. **☢️ Heavy Nuke (x2 Ammo):** High-mass thermonuclear payload with lower velocity, massive blast crater (50px radius), 50 direct damage, 35 splash damage, blinding flash, and screen shake.
-3. **💥 MIRV Cluster (x3 Ammo):** Artillery missile that automatically separates at the apex of its arc into **5 spreading bomblets** (14 direct / 10 splash each), blanketing the terrain.
-4. **⛰️ Dirt Bomb / Terraformer (x3 Ammo):** Non-lethal terraforming warhead that deposits a massive solid earthen dome to bury enemies, seal craters, or create defensive ramparts.
-5. **⚽ Bouncy Shot (x3 Ammo):** Rubber-coated explosive shell that bounces off terrain up to 3 times (28 direct / 18 splash) before detonating.
-6. **⚡ Sniper Piercer (x2 Ammo):** Ultra-high-velocity kinetic slug with flat trajectory that pierces through hills (35 direct / 12 splash).
-7. **⛏️ Tunnel Drill (x2 Ammo):** Subterranean torpedo boring directly through mountains and terrain (32 direct / 20 splash).
+### 3. 🤖 AI Bot (Selectable Skill)
+- **Ballistic search:** simulates candidate shots with the game's own physics (wind, gravity, 2-px terrain collision), then refines to 0.5° / 0.25% power.
+- **Difficulty = aiming error at the target**, so skill feels the same at any range:
+  - **🟢 Recruit:** aims 30–120 px off and usually ignores the wind.
+  - **🟡 Veteran:** aims up to ±45 px off, reads the wind roughly.
+  - **🔴 Elite:** within a few pixels.
+- **Brackets like a gunner:** if nothing moved and nobody was hit, it keeps its weapon and angle and corrects only the power, halving its error each shot.
+- **Situational weapons:** drill, homing or air strike over a ridge; napalm or roller into a hollow; nuke to finish you off.
+- **Arcade pacing:** thinks, drives (only when hit or on a steep slope), turns the turret and slides the power gauge before firing.
 
-### 5. Retro Pixel-Art Architecture & Procedural Terrain
-- **Virtual Native Resolution:** Internal 640x360 pixel-art canvas.
-- **Crisp Pixel Scaling:** Scaled via CSS `image-rendering: pixelated` and `image-rendering: crisp-edges` with responsive arcade framing.
-- **Pico-8 / EGA 16-Color Palette:** Vibrant retro tones including layered dithered dirt, rock substrata, rolling hills, twinkling night skies, and animated clouds.
-- **CRT Scanlines Mode:** Built-in scanlines toggle button for an authentic arcade cabinet look.
-- **Procedural Heightmap & Pixel Destruction:** Projectiles carve true circular craters out of the landscape. Unsupported earth crumbles with gravity.
-- **Slope-Tracking Tanks & Fall Damage:** Tanks detect ground elevation beneath treads and smoothly align with slopes, taking realistic drop damage when falling from blown-out cliffs.
+### 4. Destructible Procedural Terrain
+- Multi-octave heightmap with flattened spawn pads, Pico-8 / EGA palette, dithered grass, soil and rock strata.
+- True circular craters, gravity collapse of overhangs, sand-slide down steep steps, earth domes from the Dirt Bomb.
+- Tanks follow the slope under their tracks (the barrel and shot tilt with the hull) and take fall damage (from 18 px, capped at 30 HP).
 
-### 6. Dynamic Web Audio API Synthesizer
-- **Zero External Audio Files:** All retro 8-bit sound effects are generated dynamically via procedural oscillators, filters, noise buffers, and envelopes.
-- **Sound Palette:** Cannon thumps, thermonuclear sub-bass booms, MIRV apex separation pops, dirt deposit rumbles, bouncy shell chirps, subterranean drill grinding, engine chugging, impact crunches, and 8-bit victory fanfares.
+### 5. Performance
+- **Fixed 60 Hz simulation** — the same game speed on 60, 120 or 144 Hz screens.
+- **Dirty-rectangle terrain:** craters are applied to the grid immediately, while gravity, sand-slide and repainting run once per frame over the changed rows only.
+- Particle compaction, culling and a hard cap; pre-rendered sky and tiled parallax mountains; HUD written once per frame, only changed values; cached audio noise buffers.
+
+### 6. Web Audio Synthesizer
+All sound is generated live: cannon thumps, nuke sub-bass, MIRV pops, bounce chirps, drill grinding, napalm whoosh, homing lock beeps, bomber drone, engine chug and the victory fanfare. No audio files.
 
 ---
 
 ## 🕹️ Controls
 
-The game supports both **full keyboard shortcuts** and **on-screen touch/mouse buttons** for desktop, tablet, and mobile play:
-
-| Action | Keyboard Shortcut | On-Screen Control |
+| Action | Keyboard | Mouse / Touch |
 | :--- | :--- | :--- |
-| **Drive Tank** | `A` / `D` or `◀` / `▶` Arrow keys | `◀ LEFT` / `RIGHT ▶` buttons (hold to drive) |
-| **Aim Angle** | `W` / `S` or `▲` / `▼` Arrow keys | Angle slider, `[-]` / `[+]` buttons, or click/drag directly on canvas |
-| **Fire Power** | `Q` / `E` | Power slider, `[-]` / `[+]` buttons |
-| **Choose Weapon** | Number keys `1` through `7` | Click weapon inventory cards |
-| **Switch Mode** | — | `👥 2 PLAYERS` / `🤖 VS BOT` buttons |
-| **Bot Skill** | — | `RECRUIT` / `VETERAN` / `ELITE` buttons |
-| **FIRE!** | `SPACE` or `ENTER` | Big red `🔥 FIRE!` button |
-| **Toggle Sound** | `M` | `🔊 SOUND` button |
-| **Toggle Scanlines** | — | `📺 SCANLINES` button |
-| **Help Manual** | `H` | `❓ HELP / KEYS` button |
-| **Restart / New Map** | `R` | `🔄 NEW MAP` / `⚔️ REMATCH` button |
-| **Fullscreen** | — | `⛶ FULLSCREEN` button |
+| **Drive Tank** | `A` / `D` or `◀` / `▶` | `◀ LEFT` / `RIGHT ▶` (hold) |
+| **Aim Angle** | `W` / `S` or `▲` / `▼` | Angle slider, `[-]`/`[+]`, or drag near your tank |
+| **Fire Power** | `Q` / `E` | Power slider, `[-]`/`[+]` |
+| **Choose Weapon** | `1`–`9`, `0`; `[` / `]` to cycle | Click weapon cards |
+| **FIRE!** | `SPACE` or `ENTER` | `🔥 FIRE!` |
+| **Whole-map View** | `V` | `🗺️ MAP VIEW` |
+| **Re-centre Camera** | `C` | — |
+| **Zoom / Look Around** | — | Mouse wheel / click the minimap |
+| **Sound / Help** | `M` / `H` | `🔊 SOUND` / `❓ HELP / KEYS` |
+| **Mode / Bot Skill** | — | `👥 2 PLAYERS` / `🤖 VS BOT`, `RECRUIT` / `VETERAN` / `ELITE` |
+| **New Map** | — | `🔄 NEW MAP` / `⚔️ REMATCH` |
 
 ---
 
 ## 🚀 How to Run
 
-Because the project uses pure vanilla HTML5, CSS3, and JavaScript with zero external dependencies and standard relative scripts, you can run it immediately in any of the following ways:
+No build step and no dependencies.
 
-### Method 1: Direct File Open
-Simply double-click `index.html` in your file manager or open it directly in any web browser.
+- **Open the file:** double-click `index.html`.
+- **Or serve it locally:**
+  ```bash
+  cd tank-battle
+  python3 -m http.server 8080
+  ```
+  then visit `http://localhost:8080`.
 
-### Method 2: Local Web Server (Optional)
-If you prefer running via a local HTTP server:
-```bash
-cd tank-battle
-python3 -m http.server 8080
-```
-Then visit `http://localhost:8080` in your browser.
+Script URLs carry a `?v=` version so CDN caches (e.g. Cloudflare) serve new code immediately after an update; bump it in `index.html` when you change any `.js` or `.css` file.
