@@ -5,6 +5,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-07
+
+### Fixed
+- Release archives are byte-identical on any machine: file permissions inside the archive are normalised.
+- GitHub Pages now serves the packaged release build.
+
 ## [2.0.0] - 2026-10-07
 
 ### Added
@@ -37,6 +43,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shell trajectory now starts at the slope-aware turret pivot; barrel angle stays stable across turns.
 - Weapon and fall damage rebalanced for the 100 HP tank.
 
-[Unreleased]: https://github.com/kothf/tank-battle/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/kothf/tank-battle/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/kothf/tank-battle/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/kothf/tank-battle/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/kothf/tank-battle/releases/tag/v1.0.0
