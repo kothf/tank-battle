@@ -81,14 +81,30 @@ All sound is generated live: cannon thumps, nuke sub-bass, MIRV pops, bounce chi
 
 ## 🚀 How to Run
 
-No build step and no dependencies.
+No build step and no runtime dependencies.
 
 - **Open the file:** double-click `index.html`.
-- **Or serve it locally:**
-  ```bash
-  cd tank-battle
-  python3 -m http.server 8080
-  ```
-  then visit `http://localhost:8080`.
+- **Or serve it locally:** `npm run serve` (or `python3 -m http.server 8080`) and visit `http://localhost:8080`.
 
-Script URLs carry a `?v=` version so CDN caches (e.g. Cloudflare) serve new code immediately after an update; bump it in `index.html` when you change any `.js` or `.css` file.
+---
+
+## 🛠️ Development & Releases
+
+```bash
+npm ci                                  # dev tooling only (Playwright)
+npx playwright install chromium         # once
+npm test                                # headless smoke test, seeded and deterministic
+npm run package                         # dist/tank-battle/ + versioned .tar.gz and .sha256
+```
+
+**Releasing**
+
+1. Add the changes under a new version heading in `CHANGELOG.md`.
+2. Bump `version` in `package.json` (semver: patch for fixes, minor for features, major for breaking changes such as remapped keys).
+3. Commit, then tag and push: `git tag v2.1.0 && git push origin main v2.1.0`.
+
+The **Release** workflow checks that the tag matches `package.json`, runs the tests on the source and on the packaged build, publishes a GitHub release with `tank-battle-<version>.tar.gz` and its SHA-256, and deploys the same build to GitHub Pages. The **CI** workflow runs the same checks on every push and pull request.
+
+Source files reference their scripts as `?v=dev`; packaging stamps the release version into those URLs so CDN caches never mix versions.
+
+**Embedding:** [aerocat.tech](https://aerocat.tech/games/tank-battle/) consumes the release archive pinned by version and checksum; a scheduled workflow there opens a pull request whenever a new release appears.
