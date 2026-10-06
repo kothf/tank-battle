@@ -39,8 +39,9 @@ writeFileSync(join(out, "index.html"), stamped);
 writeFileSync(join(out, "VERSION"), `${version}\n`);
 
 const archive = `tank-battle-${version}.tar.gz`;
-// --sort/--mtime/--owner make the archive byte-identical for identical input
-execFileSync("tar", ["--sort=name", "--mtime=@0", "--owner=0", "--group=0", "--numeric-owner",
+// --sort/--mtime/--owner/--mode and gzip -n make the archive byte-identical for
+// identical input on any machine (checkout permissions and umask differ)
+execFileSync("tar", ["--sort=name", "--mtime=@0", "--owner=0", "--group=0", "--numeric-owner", "--mode=u=rwX,go=rX",
   "--use-compress-program=gzip -n", "-C", dist, "-cf", join(dist, archive), "tank-battle"]);
 const sha = createHash("sha256").update(readFileSync(join(dist, archive))).digest("hex");
 writeFileSync(join(dist, `${archive}.sha256`), `${sha}  ${archive}\n`);
