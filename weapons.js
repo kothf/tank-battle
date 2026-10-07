@@ -12,10 +12,15 @@ const GRAVITY = 0.22;
 const WIND_FORCE = 0.0075;
 
 // Muzzle speed for a power setting (shared by the game, the aim guide and the bot).
-// Top speed 21 px/frame reaches ~1750 px: across the whole field with headroom
-// for headwind, so typical shots sit around 75-85% power.
+// RANGE_SCALE is set by the map size. Range goes with speed squared, so speed
+// scales with about sqrt(map width) (a little more, for the drag on longer
+// flights): the same power crosses the same share of any map. The 7 % margin
+// lets 100 % power reach the farthest spawns against the strongest headwind;
+// typical shots sit around 75-85 %.
+const rangeScaleFor = width => 1.07 * Math.pow(width / 1800, 0.55);
+let RANGE_SCALE = rangeScaleFor(1800);
 function launchSpeed(powerPct, weapon) {
-  return (3 + (powerPct / 100) * 18) * (weapon ? weapon.speedMult : 1);
+  return (3 + (powerPct / 100) * 18) * (weapon ? weapon.speedMult : 1) * RANGE_SCALE;
 }
 
 const WEAPONS = {

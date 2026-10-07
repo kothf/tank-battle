@@ -39,6 +39,25 @@ await page.addInitScript(() => {
 await page.goto(url);
 await page.waitForFunction(() => window.game && window.game.state === "PLAYER_TURN");
 
+// --- Sound: nothing is created before a gesture; the first click starts it ---
+const snd0 = await page.evaluate(() => ({ ctx: !!soundFX.ctx, status: soundFX.status(), label: document.getElementById("btnSoundToggle").textContent }));
+check(!snd0.ctx && snd0.status === "locked" && /CLICK FOR SOUND/.test(snd0.label), `no AudioContext before a user gesture (button: "${snd0.label}")`);
+await page.mouse.click(300, 400);
+await page.waitForFunction(() => soundFX.status() === "on", null, { timeout: 3000 }).catch(() => {});
+const snd1 = await page.evaluate(() => {
+  let osc = 0; const orig = soundFX.ctx.createOscillator.bind(soundFX.ctx);
+  soundFX.ctx.createOscillator = () => { osc++; return orig(); };
+  game.fire();
+  soundFX.ctx.createOscillator = orig;
+  return { state: soundFX.ctx.state, osc, label: document.getElementById("btnSoundToggle").textContent };
+});
+check(snd1.state === "running" && snd1.osc > 0 && /SOUND ON/.test(snd1.label), `first click starts audio: context ${snd1.state}, firing made ${snd1.osc} oscillators, button "${snd1.label}"`);
+await page.keyboard.press("m");
+const snd2 = await page.evaluate(() => ({ muted: soundFX.muted, label: document.getElementById("btnSoundToggle").textContent }));
+await page.keyboard.press("m");
+check(snd2.muted && /MUTED/.test(snd2.label) && !(await page.evaluate(() => soundFX.muted)), "M mutes and unmutes, and the button shows it");
+await page.evaluate(() => { while (game.state !== "PLAYER_TURN") game.update(); localStorage.removeItem("tankBattle.muted"); });
+
 const ui = await page.evaluate(() => ({
   cards: document.querySelectorAll(".weapon-card").length,
   help: document.querySelectorAll("#helpArsenal li").length,
@@ -95,9 +114,62 @@ const damaging = results.filter(r => r.id !== "dirt");
 const hits = damaging.filter(r => r.best > 0).length;
 check(hits >= damaging.length - 1, `Elite bot damages the target with ${hits}/${damaging.length} damaging weapons`);
 
+// --- Map sizes: each one is playable end to end at the hardest spawns --------
+const maps = await page.evaluate(() => {
+  const g = game, out = [];
+  for (const size of ["small", "medium", "large"]) {
+    g.setMapSize(size);
+    const W = g.terrain.width, gap = [];
+    let worst = 0;
+    for (let k = 0; k < 4; k++) {
+      g.startNewMatch();
+      // farthest spawns, full headwind for the bot (player 2 fires left)
+      const t1 = g.player1, t2 = g.player2;
+      t1.x = Math.round(W * 0.07); t2.x = Math.round(W * 0.93);
+      g.terrain.generate([t1.x, t2.x]);
+      t1.y = g.terrain.getSurfaceY(t1.x); t2.y = g.terrain.getSurfaceY(t2.x);
+      g.activePlayer = t2; g.wind = 5; g.botDifficulty = "hard";
+      const aim = g.calculateBotAim("standard");
+      const miss = g.simulateBotTrajectory(t2, aim.angle, aim.power, WEAPONS.standard, g.wind, { x: t1.x, y: t1.y });
+      worst = Math.max(worst, miss); gap.push(aim.power);
+    }
+    out.push({ size, W, worst, maxPower: Math.max(...gap), buttons: [...document.querySelectorAll(".btn-map.active")].map(b => b.dataset.size) });
+  }
+  g.setMapSize("medium");
+  return out;
+});
+// (the standard shell's blast radius is 24 px)
+for (const m of maps) check(m.worst < 15 && m.buttons.join() === m.size,
+  `${m.size} map ${m.W} px: Elite bot's farthest shot into full headwind lands within ${m.worst.toFixed(1)} px of the target (up to ${m.maxPower.toFixed(1)}% power)`);
+check(maps[0].W < maps[1].W && maps[1].W < maps[2].W, "three map sizes: " + maps.map(m => m.W).join(" / ") + " px");
+
 // Fixed timestep: ~60 simulation steps per second regardless of display rate
 const rate = await page.evaluate(() => new Promise(r => { const f0 = game.frame, t0 = performance.now(); setTimeout(() => r((game.frame - f0) / ((performance.now() - t0) / 1000)), 1500); }));
 check(Math.abs(rate - 60) < 6, `simulation runs at ${rate.toFixed(1)} steps/s`);
+
+// --- Layout: no scrolling in fullscreen, nor in a laptop-sized window -------
+const fits = async (w, h, fs) => {
+  await page.setViewportSize({ width: w, height: h });
+  await page.evaluate(on => game.setFullscreenLayout(on), fs);
+  await page.waitForTimeout(100);
+  return page.evaluate(() => {
+    const c = document.getElementById("gameCanvas").getBoundingClientRect(), d = document.documentElement;
+    return { scroll: d.scrollHeight - innerHeight, hscroll: d.scrollWidth - innerWidth, cw: c.width, ch: c.height, bottom: c.bottom, fs: document.body.classList.contains("fs") };
+  });
+};
+for (const [w, h, fs] of [[1920, 1080, true], [1366, 768, true], [1280, 720, true], [844, 390, true], [1366, 768, false], [1920, 1080, false]]) {
+  const r = await fits(w, h, fs);
+  check(r.scroll <= 0 && r.hscroll <= 0 && Math.abs(r.cw / r.ch - 16 / 9) < 0.02 && r.ch > Math.min(200, h * 0.4) && r.fs === fs,
+    `${fs ? "fullscreen" : "window"} ${w}×${h}: no scrolling, game ${Math.round(r.cw)}×${Math.round(r.ch)} px`);
+}
+await page.evaluate(() => game.setFullscreenLayout(false));
+await page.setViewportSize({ width: 1280, height: 1000 });
+await page.click("#btnFullscreen");
+await page.waitForTimeout(300);
+const fsOn = await page.evaluate(() => document.body.classList.contains("fs") && /EXIT/.test(document.getElementById("btnFullscreen").textContent));
+await page.click("#btnFullscreen");
+await page.waitForTimeout(300);
+check(fsOn && !(await page.evaluate(() => document.body.classList.contains("fs"))), "fullscreen button enters and leaves the fit-to-screen layout");
 
 check(errors.length === 0, `no page errors${errors.length ? ": " + errors[0] : ""}`);
 await browser.close();

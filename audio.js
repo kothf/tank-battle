@@ -5,39 +5,91 @@
 class SoundFX {
   constructor() {
     this.ctx = null;
-    this.muted = false;
     this.masterGain = null;
     this.engineOsc = null;
     this.engineGain = null;
+    this.listeners = [];
+    try { this.muted = localStorage.getItem('tankBattle.muted') === '1'; } catch (e) { this.muted = false; }
+    this.armUnlock();
+    // tab hidden or iOS interruption suspends the context: resume on return
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.ctx && this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    });
+  }
+
+  /**
+   * Browsers only start audio from a user gesture (click, tap, key). The
+   * context is created and unlocked inside the first one; until then sounds
+   * are skipped instead of queuing on a blocked context.
+   */
+  armUnlock() {
+    if (this.unlockArmed) return;
+    this.unlockArmed = true;
+    const events = ['pointerdown', 'pointerup', 'mousedown', 'touchend', 'keydown', 'click'];
+    const handler = () => {
+      this.unlock();
+      if (this.ctx && this.ctx.state === 'running') {
+        events.forEach(ev => window.removeEventListener(ev, handler, true));
+        this.unlockArmed = false;
+      }
+    };
+    events.forEach(ev => window.addEventListener(ev, handler, true));
+  }
+
+  unlock() {
+    if (!this.ctx) this.init();
+    if (!this.ctx) return;
+    this.gestured = true;
+    if (this.ctx.state !== 'running') this.ctx.resume().then(() => this.notify(), () => {});
+    // iOS: a sound started inside the gesture opens the audio output
+    try {
+      const b = this.ctx.createBufferSource();
+      b.buffer = this.ctx.createBuffer(1, 1, this.ctx.sampleRate);
+      b.connect(this.ctx.destination); b.start(0);
+    } catch (e) {}
   }
 
   init() {
     if (this.ctx) return;
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      // iOS 16.4+: play through the speaker even with the ringer switch on silent
+      if (navigator.audioSession) { try { navigator.audioSession.type = 'playback'; } catch (e) {} }
       this.ctx = new AudioContext();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.3, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
+      this.ctx.addEventListener('statechange', () => {
+        if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.armUnlock();
+        this.notify();
+      });
     } catch (e) {
       console.warn('Web Audio API not supported or blocked:', e);
     }
   }
 
+  // Sounds play only once a gesture has unlocked audio
   ensureContext() {
-    if (!this.ctx) {
-      this.init();
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
+    if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.ctx.resume().catch(() => {});
   }
+  // A context resuming inside the gesture plays what is scheduled now as soon
+  // as it runs, so the sound of the very first click is not lost.
+  ready() { return !!this.ctx && this.gestured && this.ctx.state !== 'closed'; }
+
+  /** 'on' | 'muted' | 'locked' (waiting for a click or key to start audio) */
+  status() { return this.muted ? 'muted' : this.ctx && this.ctx.state === 'running' ? 'on' : 'locked'; }
+  onChange(fn) { this.listeners.push(fn); }
+  notify() { this.listeners.forEach(fn => fn(this.status())); }
 
   toggleMute() {
     this.muted = !this.muted;
+    try { localStorage.setItem('tankBattle.muted', this.muted ? '1' : '0'); } catch (e) {}
+    if (this.muted) this.stopEngine();
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.3, this.ctx.currentTime);
     }
+    this.notify();
     return this.muted;
   }
 
@@ -64,7 +116,7 @@ class SoundFX {
   tone(type, f0, f1, dur, vol, delay = 0) {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
     const now = this.ctx.currentTime + delay;
     const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
     osc.type = type;
@@ -86,7 +138,7 @@ class SoundFX {
   playNapalm() {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
     const now = this.ctx.currentTime;
     const noise = this.ctx.createBufferSource();
     noise.buffer = this.createNoiseBuffer(0.8);
@@ -114,7 +166,7 @@ class SoundFX {
   playClick(pitch = 800) {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
@@ -139,7 +191,7 @@ class SoundFX {
   playWeaponSelect() {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -165,7 +217,7 @@ class SoundFX {
   playTurnStart(isPlayer1) {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const notes = isPlayer1 ? [330, 440, 554] : [440, 392, 587];
     notes.forEach((freq, idx) => {
@@ -193,7 +245,7 @@ class SoundFX {
   playShoot(weaponId) {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const now = this.ctx.currentTime;
 
@@ -371,7 +423,7 @@ class SoundFX {
   playClusterSplit() {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     for (let i = 0; i < 4; i++) {
       const t = this.ctx.currentTime + i * 0.035;
@@ -397,7 +449,7 @@ class SoundFX {
   playBounce() {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -423,7 +475,7 @@ class SoundFX {
   playDrillGrind() {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -449,7 +501,7 @@ class SoundFX {
   playExplosion(radius = 25) {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const now = this.ctx.currentTime;
     const duration = Math.min(1.2, 0.3 + (radius / 50) * 0.6);
@@ -499,7 +551,7 @@ class SoundFX {
   playDirtDeposit() {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const now = this.ctx.currentTime;
     const noise = this.ctx.createBufferSource();
@@ -528,7 +580,7 @@ class SoundFX {
   playFallDamage() {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -554,7 +606,7 @@ class SoundFX {
   startEngine() {
     if (this.muted || this.engineOsc) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     try {
       this.engineOsc = this.ctx.createOscillator();
@@ -589,7 +641,7 @@ class SoundFX {
   playVictory() {
     if (this.muted) return;
     this.ensureContext();
-    if (!this.ctx) return;
+    if (!this.ready()) return;
 
     const melody = [
       { f: 261.63, d: 0.12 }, // C4

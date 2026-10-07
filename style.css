@@ -738,3 +738,91 @@ canvas#gameCanvas {
     flex-wrap: wrap;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Fit to the window: in fullscreen and in landscape windows tall enough to
+   play, the cabinet never exceeds the viewport height. The screen frame
+   shrinks first and the canvas keeps 16:9 inside it (container units), so
+   the page doesn't need scrolling. Portrait phones keep the stacked page.
+   --------------------------------------------------------------------------- */
+.screen-frame {
+  flex: 0 1 auto;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+canvas#gameCanvas {
+  width: 100%;
+  width: min(100cqw, 100cqh * 16 / 9);
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+@media (orientation: landscape) and (min-height: 560px) {
+  .arcade-cabinet { max-height: calc(100dvh - 20px); }
+  .screen-frame { min-height: 180px; }
+}
+
+/* Fullscreen (API or the fill-window fallback on phones without it) */
+body.fs {
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+body.fs .arcade-cabinet {
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 6px 8px;
+}
+body.fs .top-hud, body.fs .mode-bar { margin-bottom: 5px; }
+body.fs .screen-frame { flex: 1 1 0; aspect-ratio: auto; min-height: 120px; border-width: 2px; }
+body.fs .control-console { margin-top: 5px; gap: 5px; padding: 6px; }
+/* one scrolling row of weapons instead of two or three */
+body.fs .weapons-tray { display: flex; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+body.fs .weapon-card { flex: 1 0 78px; }
+@media (max-height: 640px) {
+  body.fs .mode-bar { display: none; }
+  body.fs .top-hud { margin-bottom: 3px; }
+  body.fs .player-card, body.fs .center-widget { padding: 3px 8px; }
+  body.fs .turn-banner { margin-bottom: 1px; padding: 1px 8px; font-size: 11px; }
+  body.fs .panel-section { padding: 3px 6px; gap: 2px; }
+  body.fs .btn-fire { min-height: 36px; }
+  body.fs .weapon-sub { display: none; }
+}
+@media (max-height: 640px) and (max-width: 900px) {
+  /* landscape phones: controls side by side */
+  body.fs .controls-row-primary { grid-template-columns: 1fr 1fr 1fr 0.8fr; gap: 4px; }
+  body.fs .top-hud { grid-template-columns: 1fr 1.2fr 1fr; }
+  body.fs .top-hud .center-widget { grid-column: auto; order: 0; }
+  body.fs .utility-bar { display: none; }
+}
+
+/* The frame is only a slot: the visible screen bezel and scanlines follow the
+   canvas, so a height-limited screen has no black bars beside it. */
+.screen-frame {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+canvas#gameCanvas {
+  background: #000;
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px #2e354f, 0 0 25px rgba(0, 0, 0, 0.9);
+}
+.scanlines-enabled::after {
+  top: 50%; left: 50%; right: auto; bottom: auto;
+  width: 100%; height: 100%;
+  width: min(100cqw, 100cqh * 16 / 9);
+  height: min(100cqh, 100cqw * 9 / 16);
+  transform: translate(-50%, -50%);
+  border-radius: 6px;
+}
+body.fs .screen-frame { border: 0; }

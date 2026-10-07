@@ -5,6 +5,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-07
+
+### Added
+- Three map sizes: Small (1200 px, about 2 screens), Medium (1800 px) and Large (2800 px, about 4.5 screens), chosen on the mode bar and remembered. Shell speed scales with the map, so the same power crosses the same share of any field.
+- `F` toggles fullscreen.
+
+### Fixed
+- Sound: audio now starts on the first click, tap or key press. The game used to create its audio before any interaction, which browsers start blocked, and on iPhones the ringer switch silenced it. The sound button shows the real state (click for sound / on / muted), and mute is remembered.
+- Fullscreen (and laptop-sized windows) no longer need scrolling: the cabinet fits the screen height and the game view shrinks to fit at 16:9. Weapons sit in one row in fullscreen; phones without the Fullscreen API (iPhone) get a fill-the-window mode.
+- At the farthest spawn points into the strongest headwind a shot could fall short even at 100 % power. Shells are 7 % faster, so every spawn can be reached on every map size.
+
 ## [2.0.1] - 2026-10-07
 
 ### Fixed
@@ -43,7 +54,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shell trajectory now starts at the slope-aware turret pivot; barrel angle stays stable across turns.
 - Weapon and fall damage rebalanced for the 100 HP tank.
 
-[Unreleased]: https://github.com/kothf/tank-battle/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/kothf/tank-battle/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/kothf/tank-battle/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/kothf/tank-battle/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/kothf/tank-battle/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/kothf/tank-battle/releases/tag/v1.0.0
