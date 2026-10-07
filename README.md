@@ -11,9 +11,9 @@ A retro turn-based tank artillery game inspired by **Scorched Earth**, **Pocket 
 ## 🌟 Key Features
 
 ### 1. 🗺️ Scrolling Battlefield
-- **Three map sizes**, 540 px tall, seen through a crisp 640×360 pixel view: Small 1200 px, Medium 1800 px and Large 2800 px wide (about 2, 3 and 4.5 screens). Shell speed scales with the map, so the same power setting crosses the same share of any field.
+- **Three map sizes**, 540 px tall, seen through a crisp pixel view 360 rows tall whose width follows your window (16:9 = 640 px, wider in fullscreen): Small 1200 px, Medium 1800 px and Large 2800 px wide (about 2, 3 and 4.5 screens). Shell speed scales with the map, so the same power setting crosses the same share of any field.
 - **Fullscreen** (button or `F`) fits the whole cabinet on the screen with no scrolling.
-- **Camera** follows your tank while you aim (framing both tanks when they fit), then the shell in flight, then the explosion.
+- **Camera** frames both tanks while you aim (zooming out as far as the map needs; markers float above the tanks when they get small), then follows the shell in flight and the explosion.
 - **Mouse wheel** zooms, **`V`** shows the whole battlefield, **`C`** re-centres, and the **minimap** (click/drag) lets you look around.
 - **Edge markers** point to off-screen shells (with altitude) and the enemy tank (with distance).
 - Random spawn points on every map; cannon range and fuel sized for the larger field.
@@ -110,3 +110,9 @@ The **Release** workflow checks that the tag matches `package.json`, runs the te
 Source files reference their scripts as `?v=dev`; packaging stamps the release version into those URLs so CDN caches never mix versions.
 
 **Embedding:** [aerocat.tech](https://aerocat.tech/games/tank-battle/) consumes the release archive pinned by version and checksum; a scheduled workflow there opens a pull request whenever a new release appears.
+
+---
+
+## 📄 License
+
+[MIT](LICENSE) © 2026 Andrey Dumchin

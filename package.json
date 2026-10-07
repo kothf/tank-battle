@@ -1,9 +1,9 @@
 {
   "name": "tank-battle",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Retro turn-based artillery game (Scorched Earth style) in vanilla JavaScript, canvas and Web Audio.",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",

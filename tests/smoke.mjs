@@ -138,6 +138,26 @@ const maps = await page.evaluate(() => {
   g.setMapSize("medium");
   return out;
 });
+// both tanks in view when a turn starts, on every map size and window shape
+for (const [w, h] of [[1366, 768], [1206, 700], [844, 390], [390, 844]]) {
+  await page.setViewportSize({ width: w, height: h });
+  const seen = await page.evaluate(() => {
+    const out = [];
+    for (const size of ["small", "medium", "large"]) {
+      game.setMapSize(size);
+      for (let k = 0; k < 3; k++) {
+        game.startNewMatch();
+        for (let i = 0; i < 120; i++) game.updateCamera();
+        const v = game.view(), inView = t => t.x - 9 >= v.x && t.x + 9 <= v.x + v.w && t.y - 14 >= v.y && t.y <= v.y + v.h;
+        out.push(inView(game.player1) && inView(game.player2));
+      }
+    }
+    game.setMapSize("medium");
+    return out;
+  });
+  check(seen.every(Boolean), `${w}×${h}: both tanks in view at the start of the turn on small, medium and large maps (${seen.filter(Boolean).length}/${seen.length})`);
+}
+await page.setViewportSize({ width: 1280, height: 1000 });
 // (the standard shell's blast radius is 24 px)
 for (const m of maps) check(m.worst < 15 && m.buttons.join() === m.size,
   `${m.size} map ${m.W} px: Elite bot's farthest shot into full headwind lands within ${m.worst.toFixed(1)} px of the target (up to ${m.maxPower.toFixed(1)}% power)`);
@@ -153,14 +173,17 @@ const fits = async (w, h, fs) => {
   await page.evaluate(on => game.setFullscreenLayout(on), fs);
   await page.waitForTimeout(100);
   return page.evaluate(() => {
-    const c = document.getElementById("gameCanvas").getBoundingClientRect(), d = document.documentElement;
-    return { scroll: d.scrollHeight - innerHeight, hscroll: d.scrollWidth - innerWidth, cw: c.width, ch: c.height, bottom: c.bottom, fs: document.body.classList.contains("fs") };
+    const c = document.getElementById("gameCanvas").getBoundingClientRect(), f = document.getElementById("screenFrame").getBoundingClientRect(), d = document.documentElement;
+    return { scroll: d.scrollHeight - innerHeight, hscroll: d.scrollWidth - innerWidth, cw: c.width, ch: c.height, fw: f.width, fh: f.height,
+      px: game.canvas.width, fs: document.body.classList.contains("fs") };
   });
 };
 for (const [w, h, fs] of [[1920, 1080, true], [1366, 768, true], [1280, 720, true], [844, 390, true], [1366, 768, false], [1920, 1080, false]]) {
   const r = await fits(w, h, fs);
-  check(r.scroll <= 0 && r.hscroll <= 0 && Math.abs(r.cw / r.ch - 16 / 9) < 0.02 && r.ch > Math.min(200, h * 0.4) && r.fs === fs,
-    `${fs ? "fullscreen" : "window"} ${w}×${h}: no scrolling, game ${Math.round(r.cw)}×${Math.round(r.ch)} px`);
+  // the game fills its slot (no bars) and the drawing keeps square pixels
+  const fills = Math.abs(r.cw - r.fw) < 2 || Math.abs(r.ch - r.fh) < 2;
+  check(r.scroll <= 0 && r.hscroll <= 0 && fills && Math.abs(r.cw / r.ch - r.px / 360) < 0.01 && r.ch > Math.min(200, h * 0.4) && r.fs === fs,
+    `${fs ? "fullscreen" : "window"} ${w}×${h}: no scrolling, game fills its ${Math.round(r.fw)}×${Math.round(r.fh)} slot at ${Math.round(r.cw)}×${Math.round(r.ch)} (${r.px}×360 px)`);
 }
 await page.evaluate(() => game.setFullscreenLayout(false));
 await page.setViewportSize({ width: 1280, height: 1000 });

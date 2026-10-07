@@ -6,7 +6,11 @@
  * - HUD is marked dirty and written once per frame, only changed values.
  */
 
-const VIEW_W = 640, VIEW_H = 360;     // canvas pixels
+// Canvas pixels: 360 tall; the width follows the shape of the space the
+// screen gets (16:9 = 640 up to 3.2:1), so a wide, short window shows more
+// battlefield instead of empty bars.
+const VIEW_H = 360, VIEW_ASPECT = [4 / 3, 3.2];
+let VIEW_W = 640;
 const WORLD_H = 540;                  // battlefield height, pixels
 // Battlefield widths (pixels); the 640-px view is ~2, ~3 and ~4.5 screens wide
 const MAP_SIZES = { small: 1200, medium: 1800, large: 2800 };
@@ -47,8 +51,9 @@ class TankBattleGame {
     this.frame = 0;
 
     // Camera (world units; zoom = canvas px per world px)
-    this.fitZoom = VIEW_W / WORLD_W;
-    this.cam = { x: 0, y: 0, zoom: 1, userZoom: 1, overview: false, free: false, fx: 0, fy: 0, focus: { x: 0, y: 0 } };
+    this.fitZoom = Math.min(1, VIEW_W / WORLD_W);
+    // manualZoom: the wheel took over from the automatic both-tanks framing
+    this.cam = { x: 0, y: 0, zoom: 1, userZoom: 1, manualZoom: false, overview: false, free: false, fx: 0, fy: 0, focus: { x: 0, y: 0 } };
 
     this.keys = {};
     this.isDrivingLeft = false;
@@ -74,6 +79,9 @@ class TankBattleGame {
     this.minimapVersion = -1;
 
     this.initEnvironment();
+    this.resizeView();
+    if (window.ResizeObserver) new ResizeObserver(() => this.resizeView()).observe(this.canvas.parentElement);
+    else window.addEventListener('resize', () => this.resizeView());
     this.initTanks();
     this.cacheDom();
     this.buildWeaponTray();
@@ -98,8 +106,9 @@ class TankBattleGame {
     RANGE_SCALE = rangeScaleFor(WORLD_W);
     this.width = WORLD_W;
     this.terrain = new TerrainSystem(WORLD_W, WORLD_H);
-    this.fitZoom = VIEW_W / WORLD_W;
+    this.fitZoom = Math.min(1, VIEW_W / WORLD_W);
     this.cam.userZoom = Math.max(this.fitZoom, this.cam.userZoom);
+    this.cam.manualZoom = false;
     this.minimapVersion = -1;
     this.initClouds();
     this.renderMapButtons();
@@ -117,20 +126,41 @@ class TankBattleGame {
     }));
   }
 
-  initEnvironment() {
-    this.stars = Array.from({ length: 60 }, () => ({
+  // Sky and stars are screen space: rebuilt when the view width changes
+  buildSky() {
+    this.stars = Array.from({ length: Math.round(60 * VIEW_W / 640) }, () => ({
       x: Math.random() * VIEW_W, y: Math.random() * VIEW_H * 0.5,
       size: Math.random() < 0.2 ? 2 : 1, twinkle: Math.random() * Math.PI * 2, twinkleSpeed: 0.02 + Math.random() * 0.04
     }));
-    this.initClouds();
-
-    // Sky gradient: rendered once, screen space
     this.skyCanvas = document.createElement('canvas');
     this.skyCanvas.width = VIEW_W; this.skyCanvas.height = VIEW_H;
     const sc = this.skyCanvas.getContext('2d');
     const g = sc.createLinearGradient(0, 0, 0, VIEW_H);
     g.addColorStop(0, '#0c1021'); g.addColorStop(0.45, '#1e1b4b'); g.addColorStop(0.75, '#4c1d95'); g.addColorStop(1, '#831843');
     sc.fillStyle = g; sc.fillRect(0, 0, VIEW_W, VIEW_H);
+  }
+
+  // Fit the canvas to its slot: the drawing width follows the slot's shape
+  // (within VIEW_ASPECT), and the canvas is sized in CSS pixels to fill it.
+  resizeView() {
+    const frame = this.canvas.parentElement, fw = frame.clientWidth, fh = frame.clientHeight;
+    if (!fw || !fh) return;
+    const aspect = Math.max(VIEW_ASPECT[0], Math.min(VIEW_ASPECT[1], fw / fh));
+    const cw = Math.min(fw, fh * aspect);
+    this.canvas.style.width = `${cw}px`;
+    this.canvas.style.height = `${cw / aspect}px`;
+    const w = Math.round(VIEW_H * aspect / 2) * 2;
+    if (w === VIEW_W) return;
+    VIEW_W = w;
+    this.canvas.width = VIEW_W; this.canvas.height = VIEW_H;
+    this.fitZoom = Math.min(1, VIEW_W / WORLD_W);
+    this.buildSky();
+    if (this.player1) this.snapCamera();
+  }
+
+  initEnvironment() {
+    this.buildSky();
+    this.initClouds();
 
     // Parallax mountain strips: periodic so they tile seamlessly
     const strip = (color, base, amp, seed) => {
@@ -271,14 +301,26 @@ class TankBattleGame {
       return c.focus;
     }
     if (this.state === 'SETTLING' || this.state === 'GAME_OVER') return c.focus;
-    // Player turn: frame both tanks when they fit, else look ahead of the shooter
+    // Player turn: frame both tanks (the zoom makes them fit), unless the
+    // wheel zoomed in: then look ahead of the shooter
     const t = this.activePlayer, e = t === this.player1 ? this.player2 : this.player1;
     const vw = VIEW_W / this.targetZoom();
-    if (Math.abs(e.x - t.x) < vw * 0.8) c.focus = { x: (t.x + e.x) / 2, y: (t.y + e.y) / 2 - 20 };
+    if (!c.manualZoom || Math.abs(e.x - t.x) < vw * 0.8) c.focus = { x: (t.x + e.x) / 2, y: (t.y + e.y) / 2 - 20 };
     else c.focus = { x: t.x + Math.sign(e.x - t.x) * vw * 0.25, y: t.y - 30 };
     return c.focus;
   }
-  targetZoom() { return this.cam.overview ? this.fitZoom : this.cam.userZoom; }
+  targetZoom() {
+    const c = this.cam;
+    if (c.overview) return this.fitZoom;
+    if (c.manualZoom || !this.player1) return c.userZoom;
+    return this.bothTanksZoom();
+  }
+  // Largest zoom (up to 1:1) that shows both tanks with room around them
+  bothTanksZoom() {
+    const a = this.player1, b = this.player2;
+    const zx = VIEW_W / (Math.abs(a.x - b.x) + 160), zy = VIEW_H / (Math.abs(a.y - b.y) + 190);
+    return Math.max(this.fitZoom, Math.min(1, zx, zy));
+  }
   cameraTarget() {
     const z = this.cam.zoom, f = this.cameraFocus();
     const vw = VIEW_W / z, vh = VIEW_H / z;
@@ -385,6 +427,7 @@ class TankBattleGame {
     this.randomizeWind();
     this.state = 'PLAYER_TURN';
     this.cam.free = false;
+    this.cam.manualZoom = false;
     this.updateHUD();
     if (this.isBotTurn()) this.initiateBotTurn();
     else if (window.soundFX) window.soundFX.playTurnStart(this.activePlayer.id === 1);
@@ -439,6 +482,7 @@ class TankBattleGame {
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.particles.drawFlash(ctx, VIEW_W, VIEW_H);
+    this.drawTankBeacons(ctx, view);
     this.drawOffscreenMarkers(ctx, view);
     this.drawMinimap(ctx, view);
   }
@@ -475,6 +519,23 @@ class TankBattleGame {
         ctx.globalAlpha = Math.max(0.2, 1 - f / 34 * 0.8);
         ctx.fillRect((px | 0) - 1, (py | 0) - 1, 2, 2);
       }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Zoomed out, tanks are a few pixels wide: a coloured chevron above each
+  drawTankBeacons(ctx, view) {
+    const z = this.cam.zoom;
+    if (z > 0.75) return;
+    ctx.globalAlpha = Math.min(1, (0.75 - z) * 8);
+    for (const t of [this.player1, this.player2]) {
+      if (t.isDead) continue;
+      const sx = Math.round((t.x - view.x) * z), sy = Math.round((t.y - view.y) * z) - 14;
+      if (sx < -10 || sx > VIEW_W + 10 || sy < -10 || sy > VIEW_H + 10) continue;
+      const bob = Math.round(Math.sin(this.frame * 0.12) * 1.5);
+      ctx.fillStyle = t.colors.hull;
+      ctx.beginPath(); ctx.moveTo(sx - 5, sy - 6 + bob); ctx.lineTo(sx + 5, sy - 6 + bob); ctx.lineTo(sx, sy + bob); ctx.closePath(); ctx.fill();
+      if (t === this.activePlayer && this.state === 'PLAYER_TURN') { ctx.fillStyle = '#FFF1E8'; ctx.fillRect(sx - 1, sy - 11 + bob, 2, 3); }
     }
     ctx.globalAlpha = 1;
   }
@@ -669,7 +730,7 @@ class TankBattleGame {
         if (e.code === 'BracketLeft') this.cycleWeapon(-1);
       }
       if (e.code === 'KeyV') this.toggleOverview();
-      if (e.code === 'KeyC') { this.cam.free = false; this.cam.overview = false; this.updateHUD(); }
+      if (e.code === 'KeyC') { this.cam.free = false; this.cam.overview = false; this.cam.manualZoom = false; this.updateHUD(); }
       if (e.code === 'KeyH') this.toggleHelpModal();
       if (e.code === 'KeyF') this.toggleFullscreen();
       if (e.code === 'KeyM') this.toggleMute();
@@ -772,6 +833,7 @@ class TankBattleGame {
     this.canvas.addEventListener('wheel', e => {
       e.preventDefault();
       this.cam.overview = false;
+      if (!this.cam.manualZoom) { this.cam.manualZoom = true; this.cam.userZoom = this.cam.zoom; }
       this.cam.userZoom = Math.max(this.fitZoom, Math.min(2, this.cam.userZoom * Math.exp(-e.deltaY * 0.0015)));
       this.updateHUD();
     }, { passive: false });
