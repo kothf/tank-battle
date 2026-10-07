@@ -22,7 +22,7 @@ const version = (process.argv[2] || pkg.version).replace(/^v/, "");
 if (!/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) throw new Error(`Not a semver version: ${version}`);
 
 // Everything the game needs at runtime; nothing else ships.
-const RUNTIME = ["index.html", "style.css", "audio.js", "terrain.js", "particles.js", "tank.js", "weapons.js", "game.js", "screenshot.png"];
+const RUNTIME = ["index.html", "style.css", "audio.js", "terrain.js", "particles.js", "tank.js", "weapons.js", "game.js", "screenshot.png", "LICENSE"];
 
 const dist = join(root, "dist");
 const out = join(dist, "tank-battle");

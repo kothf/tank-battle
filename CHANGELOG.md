@@ -5,6 +5,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-07
+
+### Changed
+- The game view fills the space it gets: the canvas keeps 360 pixel rows and its width follows the window's shape (from 4:3 up to 3.2:1), so wide windows and fullscreen show more battlefield instead of black bars.
+- The camera frames both tanks at the start of every turn on every map size, zooming out as far as needed; zoomed out, a coloured marker floats above each tank. Zooming with the mouse wheel takes manual control until the next turn (or `C`).
+- Licensed under the MIT license.
+
 ## [2.1.0] - 2026-10-07
 
 ### Added
@@ -54,7 +61,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shell trajectory now starts at the slope-aware turret pivot; barrel angle stays stable across turns.
 - Weapon and fall damage rebalanced for the 100 HP tank.
 
-[Unreleased]: https://github.com/kothf/tank-battle/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/kothf/tank-battle/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/kothf/tank-battle/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/kothf/tank-battle/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/kothf/tank-battle/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/kothf/tank-battle/compare/v1.0.0...v2.0.0
