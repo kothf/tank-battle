@@ -7,7 +7,10 @@
  */
 
 const VIEW_W = 640, VIEW_H = 360;     // canvas pixels
-const WORLD_W = 1800, WORLD_H = 540;  // battlefield pixels
+const WORLD_H = 540;                  // battlefield height, pixels
+// Battlefield widths (pixels); the 640-px view is ~2, ~3 and ~4.5 screens wide
+const MAP_SIZES = { small: 1200, medium: 1800, large: 2800 };
+let WORLD_W = MAP_SIZES.medium;
 const STEP_MS = 1000 / 60;
 const MINIMAP = { w: 192, h: 58, pad: 6 };
 
@@ -17,6 +20,11 @@ class TankBattleGame {
     this.ctx = this.canvas.getContext('2d');
     this.canvas.width = VIEW_W;
     this.canvas.height = VIEW_H;
+    let size = 'medium';
+    try { size = localStorage.getItem('tankBattle.map') || size; } catch (e) {}
+    this.mapSize = MAP_SIZES[size] ? size : 'medium';
+    WORLD_W = MAP_SIZES[this.mapSize];
+    RANGE_SCALE = rangeScaleFor(WORLD_W);
     this.width = WORLD_W;
     this.height = WORLD_H;
 
@@ -81,15 +89,40 @@ class TankBattleGame {
   // ---------------------------------------------------------------------------
   // Setup
   // ---------------------------------------------------------------------------
+  // New battlefield of another width: terrain, clouds and shell range follow
+  setMapSize(size) {
+    if (!MAP_SIZES[size]) return;
+    this.mapSize = size;
+    try { localStorage.setItem('tankBattle.map', size); } catch (e) {}
+    WORLD_W = MAP_SIZES[size];
+    RANGE_SCALE = rangeScaleFor(WORLD_W);
+    this.width = WORLD_W;
+    this.terrain = new TerrainSystem(WORLD_W, WORLD_H);
+    this.fitZoom = VIEW_W / WORLD_W;
+    this.cam.userZoom = Math.max(this.fitZoom, this.cam.userZoom);
+    this.minimapVersion = -1;
+    this.initClouds();
+    this.renderMapButtons();
+    if (window.soundFX) window.soundFX.playClick(600);
+    this.startNewMatch();
+  }
+  renderMapButtons() {
+    document.querySelectorAll('.btn-map').forEach(b => b.classList.toggle('active', b.dataset.size === this.mapSize));
+  }
+  initClouds() {
+    // about one cloud per 130 px of sky
+    this.clouds = Array.from({ length: Math.round(WORLD_W / 130) }, () => ({
+      x: Math.random() * WORLD_W, y: 30 + Math.random() * WORLD_H * 0.3,
+      w: 35 + Math.random() * 45, h: 8 + Math.random() * 8, speed: 0.1 + Math.random() * 0.25
+    }));
+  }
+
   initEnvironment() {
     this.stars = Array.from({ length: 60 }, () => ({
       x: Math.random() * VIEW_W, y: Math.random() * VIEW_H * 0.5,
       size: Math.random() < 0.2 ? 2 : 1, twinkle: Math.random() * Math.PI * 2, twinkleSpeed: 0.02 + Math.random() * 0.04
     }));
-    this.clouds = Array.from({ length: 14 }, () => ({
-      x: Math.random() * WORLD_W, y: 30 + Math.random() * WORLD_H * 0.3,
-      w: 35 + Math.random() * 45, h: 8 + Math.random() * 8, speed: 0.1 + Math.random() * 0.25
-    }));
+    this.initClouds();
 
     // Sky gradient: rendered once, screen space
     this.skyCanvas = document.createElement('canvas');
@@ -638,6 +671,7 @@ class TankBattleGame {
       if (e.code === 'KeyV') this.toggleOverview();
       if (e.code === 'KeyC') { this.cam.free = false; this.cam.overview = false; this.updateHUD(); }
       if (e.code === 'KeyH') this.toggleHelpModal();
+      if (e.code === 'KeyF') this.toggleFullscreen();
       if (e.code === 'KeyM') this.toggleMute();
       if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
     });
@@ -675,12 +709,19 @@ class TankBattleGame {
     click('btnRematch', () => { if (window.soundFX) window.soundFX.playClick(600); this.startNewMatch(); });
     click('btnRestartMatch', () => { if (window.soundFX) window.soundFX.playClick(600); this.startNewMatch(); });
     click('btnSoundToggle', () => this.toggleMute());
+    if (window.soundFX) { window.soundFX.onChange(st => this.renderSoundButton(st)); this.renderSoundButton(window.soundFX.status()); }
     click('btnFullscreen', () => this.toggleFullscreen());
+    const fsChange = () => this.setFullscreenLayout(!!(document.fullscreenElement || document.webkitFullscreenElement), true);
+    document.addEventListener('fullscreenchange', fsChange);
+    document.addEventListener('webkitfullscreenchange', fsChange);
+    window.addEventListener('keydown', e => { if (e.code === 'Escape' && this.fillWindow) this.setFullscreenLayout(false); });
     click('btnHelp', () => this.toggleHelpModal());
     click('btnCloseHelp', () => this.el.helpModal && this.el.helpModal.classList.add('hidden'));
     click('btnModePvP', () => this.setGameMode('pvp'));
     click('btnModePvB', () => this.setGameMode('pvb'));
     click('btnOverview', () => this.toggleOverview());
+    document.querySelectorAll('.btn-map').forEach(btn => btn.addEventListener('click', () => this.setMapSize(btn.dataset.size)));
+    this.renderMapButtons();
     document.querySelectorAll('.btn-diff').forEach(btn => btn.addEventListener('click', () => { if (btn.dataset.level) this.setBotDifficulty(btn.dataset.level); }));
 
     // Canvas: minimap pans the camera, elsewhere drag aims; wheel zooms
@@ -746,14 +787,40 @@ class TankBattleGame {
     this.updateHUD();
   }
   toggleMute() {
-    if (!window.soundFX) return;
-    const muted = window.soundFX.toggleMute();
-    const btn = document.getElementById('btnSoundToggle');
-    if (btn) btn.innerText = muted ? '🔇 MUTE' : '🔊 SOUND';
+    const sfx = window.soundFX;
+    if (!sfx) return;
+    // the first click only starts audio (the gesture unlocks it); later ones mute
+    if (sfx.status() === 'locked' && !sfx.muted) { sfx.playClick(650); return; }
+    sfx.toggleMute();
+    if (!sfx.muted) sfx.playClick(650);
   }
+  renderSoundButton(status) {
+    const btn = document.getElementById('btnSoundToggle');
+    if (!btn) return;
+    btn.textContent = status === 'muted' ? '🔇 MUTED' : status === 'on' ? '🔊 SOUND ON' : '🔈 CLICK FOR SOUND';
+    btn.title = status === 'muted' ? 'Sound is muted: click or press M to turn it on' : status === 'on' ? 'Click or press M to mute' : 'Browsers start sound after your first click or key press';
+    btn.classList.toggle('active', status === 'on');
+  }
+  // Fullscreen API where there is one; otherwise (iPhone) fill the window.
+  // Either way body.fs switches to the fit-to-screen layout.
   toggleFullscreen() {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-    else document.exitFullscreen().catch(() => {});
+    const d = document, el = d.documentElement;
+    const active = d.fullscreenElement || d.webkitFullscreenElement;
+    const request = el.requestFullscreen || el.webkitRequestFullscreen;
+    const exit = d.exitFullscreen || d.webkitExitFullscreen;
+    if (active) { Promise.resolve(exit.call(d)).catch(() => {}); return; }
+    if (this.fillWindow) { this.setFullscreenLayout(false); return; }
+    if (request) {
+      Promise.resolve(request.call(el)).catch(() => this.setFullscreenLayout(true));
+    } else this.setFullscreenLayout(true);
+  }
+  setFullscreenLayout(on, viaApi) {
+    this.fillWindow = on && !viaApi;
+    document.body.classList.toggle('fs', on);
+    const btn = document.getElementById('btnFullscreen');
+    if (btn) btn.textContent = on ? '⛶ EXIT FULLSCREEN' : '⛶ FULLSCREEN';
+    window.scrollTo(0, 0);
+    this.updateHUD();
   }
   toggleHelpModal() {
     if (this.el.helpModal) { this.el.helpModal.classList.toggle('hidden'); if (window.soundFX) window.soundFX.playClick(600); }

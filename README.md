@@ -11,7 +11,8 @@ A retro turn-based tank artillery game inspired by **Scorched Earth**, **Pocket 
 ## 🌟 Key Features
 
 ### 1. 🗺️ Scrolling Battlefield
-- **1800×540 world** (almost three screens wide) seen through a crisp 640×360 pixel view.
+- **Three map sizes**, 540 px tall, seen through a crisp 640×360 pixel view: Small 1200 px, Medium 1800 px and Large 2800 px wide (about 2, 3 and 4.5 screens). Shell speed scales with the map, so the same power setting crosses the same share of any field.
+- **Fullscreen** (button or `F`) fits the whole cabinet on the screen with no scrolling.
 - **Camera** follows your tank while you aim (framing both tanks when they fit), then the shell in flight, then the explosion.
 - **Mouse wheel** zooms, **`V`** shows the whole battlefield, **`C`** re-centres, and the **minimap** (click/drag) lets you look around.
 - **Edge markers** point to off-screen shells (with altitude) and the enemy tank (with distance).
@@ -57,7 +58,7 @@ Damage is balanced against the 100 HP tank pool for multi-turn duels.
 - Particle compaction, culling and a hard cap; pre-rendered sky and tiled parallax mountains; HUD written once per frame, only changed values; cached audio noise buffers.
 
 ### 6. Web Audio Synthesizer
-All sound is generated live: cannon thumps, nuke sub-bass, MIRV pops, bounce chirps, drill grinding, napalm whoosh, homing lock beeps, bomber drone, engine chug and the victory fanfare. No audio files.
+All sound is generated live: cannon thumps, nuke sub-bass, MIRV pops, bounce chirps, drill grinding, napalm whoosh, homing lock beeps, bomber drone, engine chug and the victory fanfare. No audio files. Browsers only allow sound after you interact with the page, so it starts with your first click, tap or key press.
 
 ---
 
@@ -73,7 +74,8 @@ All sound is generated live: cannon thumps, nuke sub-bass, MIRV pops, bounce chi
 | **Whole-map View** | `V` | `🗺️ MAP VIEW` |
 | **Re-centre Camera** | `C` | — |
 | **Zoom / Look Around** | — | Mouse wheel / click the minimap |
-| **Sound / Help** | `M` / `H` | `🔊 SOUND` / `❓ HELP / KEYS` |
+| **Sound / Help** | `M` / `H` | `🔊 SOUND ON` / `❓ HELP / KEYS` |
+| **Fullscreen** | `F` | `⛶ FULLSCREEN` |
 | **Mode / Bot Skill** | — | `👥 2 PLAYERS` / `🤖 VS BOT`, `RECRUIT` / `VETERAN` / `ELITE` |
 | **New Map** | — | `🔄 NEW MAP` / `⚔️ REMATCH` |
 

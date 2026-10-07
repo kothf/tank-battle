@@ -56,6 +56,12 @@
         <button id="btnModePvP" class="btn-mode">👥 2 PLAYERS</button>
         <button id="btnModePvB" class="btn-mode active">🤖 VS BOT</button>
       </div>
+      <div class="mode-group">
+        <span class="mode-label">MAP:</span>
+        <button class="btn-mode btn-map" data-size="small" title="1200 px: about 2 screens">SMALL</button>
+        <button class="btn-mode btn-map" data-size="medium" title="1800 px: about 3 screens">MEDIUM</button>
+        <button class="btn-mode btn-map" data-size="large" title="2800 px: about 4.5 screens">LARGE</button>
+      </div>
       <div id="botDiffGroup" class="diff-group">
         <span class="mode-label">BOT SKILL:</span>
         <button id="btnDiffEasy" class="btn-diff" data-level="easy">RECRUIT</button>
@@ -93,6 +99,7 @@
                 <li><kbd>V</kbd> : Whole-Battlefield View, <kbd>C</kbd> : Re-center Camera</li>
                 <li>Mouse wheel : Zoom, click the minimap : Look around</li>
                 <li><kbd>M</kbd> : Toggle Audio Mute, <kbd>H</kbd> : Show / Hide Help</li>
+                <li><kbd>F</kbd> : Fullscreen</li>
               </ul>
             </div>
             <div class="help-col">
@@ -101,7 +108,7 @@
             </div>
           </div>
           <div style="margin-bottom: 12px; padding: 6px 10px; background: #1c2233; border: 1px solid #2d364f; border-radius: 4px; font-size: 10px; color: var(--c-yellow); text-align: left;">
-            🗺️ <strong>Big Battlefield:</strong> The map is almost three screens wide. The camera follows the action; press <kbd>V</kbd> to see it all.<br>
+            🗺️ <strong>Battlefield:</strong> Small, medium or large map (about 2, 3 or 4.5 screens wide). Shells fly faster on bigger maps, so the same power crosses the same share of the field. The camera follows the action; press <kbd>V</kbd> to see it all.<br>
             🤖 <strong>AI Bot:</strong> Select "VS BOT" to play solo with Recruit (Easy), Veteran (Medium), or Elite (Hard) skill.
           </div>
           <button id="btnCloseHelp" class="btn-retro" style="padding: 6px 16px;">CLOSE MANUAL</button>
@@ -173,7 +180,7 @@
       <!-- Footer Utility Bar -->
       <div class="utility-bar">
         <div class="util-left">
-          <button id="btnSoundToggle" class="btn-util">🔊 SOUND</button>
+          <button id="btnSoundToggle" class="btn-util">🔈 CLICK FOR SOUND</button>
           <button id="btnScanlines" class="btn-util">📺 SCANLINES</button>
           <button id="btnHelp" class="btn-util">❓ HELP / KEYS</button>
         </div>
