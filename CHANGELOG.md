@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-07
+
+### Fixed
+- Sound was too quiet to hear on TV and laptop speakers: shots peaked at -18 dBFS (about 20 dB under typical web video) and were almost all low thump. The master level is ~14 dB higher with a compressor against clipping, and shots and explosions get a short bright crack that small speakers reproduce. Measured in Vivaldi on Linux: peaks -3 dBFS, average -20 dBFS (was -18 / -34).
+
+### Changed
+- Finer aiming: a tap of a key or the `-` / `+` buttons moves the angle by 0.1° and the power by 0.1 %; holding repeats slowly after 0.3 s and fast after 1 s. Angle and power show one decimal; the sliders and drag-aiming have 0.1 steps.
+
 ## [2.2.0] - 2026-10-07
 
 ### Changed
@@ -61,7 +69,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Shell trajectory now starts at the slope-aware turret pivot; barrel angle stays stable across turns.
 - Weapon and fall damage rebalanced for the 100 HP tank.
 
-[Unreleased]: https://github.com/kothf/tank-battle/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/kothf/tank-battle/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/kothf/tank-battle/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/kothf/tank-battle/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/kothf/tank-battle/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/kothf/tank-battle/compare/v2.0.0...v2.0.1

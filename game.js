@@ -364,10 +364,25 @@ class TankBattleGame {
     if (moved) { if (window.soundFX) window.soundFX.startEngine(); this.cam.free = false; this.updateHUD(); }
     else if (window.soundFX) window.soundFX.stopEngine();
 
-    if (this.keys.KeyW || this.keys.ArrowUp || this.aimAdjustDir > 0) { tank.angle = Math.min(180, tank.angle + 0.6); this.updateHUD(); }
-    if (this.keys.KeyS || this.keys.ArrowDown || this.aimAdjustDir < 0) { tank.angle = Math.max(0, tank.angle - 0.6); this.updateHUD(); }
-    if (this.keys.KeyE || this.powerAdjustDir > 0) { tank.power = Math.min(100, tank.power + 0.5); this.updateHUD(); }
-    if (this.keys.KeyQ || this.powerAdjustDir < 0) { tank.power = Math.max(5, tank.power - 0.5); this.updateHUD(); }
+    const aimDir = (this.keys.KeyW || this.keys.ArrowUp || this.aimAdjustDir > 0 ? 1 : 0) - (this.keys.KeyS || this.keys.ArrowDown || this.aimAdjustDir < 0 ? 1 : 0);
+    const powDir = (this.keys.KeyE || this.powerAdjustDir > 0 ? 1 : 0) - (this.keys.KeyQ || this.powerAdjustDir < 0 ? 1 : 0);
+    const da = this.adjustStep('aim', aimDir), dp = this.adjustStep('power', powDir);
+    if (da) { tank.angle = Math.max(0, Math.min(180, Math.round((tank.angle + da) * 10) / 10)); this.updateHUD(); }
+    if (dp) { tank.power = Math.max(5, Math.min(100, Math.round((tank.power + dp) * 10) / 10)); this.updateHUD(); }
+  }
+
+  // Fine aiming: a tap moves 0.1 (degree or percent); holding repeats slowly
+  // after 0.3 s (6 per second), then fast after 1 s (30 per second).
+  adjustStep(key, dir) {
+    this.hold = this.hold || {};
+    const h = this.hold[key] || { dir: 0, frames: 0 };
+    if (dir !== h.dir) { h.dir = dir; h.frames = 0; }
+    this.hold[key] = h;
+    if (!dir) return 0;
+    const f = h.frames++;
+    if (f === 0) return 0.1 * dir;
+    if (f < 18) return 0;
+    return (f < 60 ? 0.1 : 0.5) * dir;
   }
 
   fire() {
@@ -641,10 +656,10 @@ class TankBattleGame {
       style(el.windArrow, 'color', aw > 3 ? '#FF004D' : '#29ADFF');
     }
     if (a) {
-      const ang = Math.round(a.angle), pow = Math.round(a.power);
-      if (el.angleSlider && document.activeElement !== el.angleSlider && el.angleSlider.value !== String(ang)) el.angleSlider.value = ang;
+      const ang = (Math.round(a.angle * 10) / 10).toFixed(1), pow = (Math.round(a.power * 10) / 10).toFixed(1);
+      if (el.angleSlider && document.activeElement !== el.angleSlider && +el.angleSlider.value !== +ang) el.angleSlider.value = ang;
       text(el.angleVal, `${ang}°`);
-      if (el.powerSlider && document.activeElement !== el.powerSlider && el.powerSlider.value !== String(pow)) el.powerSlider.value = pow;
+      if (el.powerSlider && document.activeElement !== el.powerSlider && +el.powerSlider.value !== +pow) el.powerSlider.value = pow;
       text(el.powerVal, `${pow}%`);
       style(el.powerMeterFill, 'width', `${pow}%`);
       this.renderWeaponTray();
@@ -805,7 +820,7 @@ class TankBattleGame {
       let rad = tank.id === 1 ? -wa : wa + Math.PI;
       if (rad < 0) rad += Math.PI * 2;
       const deg = rad * 180 / Math.PI;
-      if (deg >= 0 && deg <= 180) { tank.angle = Math.round(deg); this.updateHUD(); }
+      if (deg >= 0 && deg <= 180) { tank.angle = Math.round(deg * 10) / 10; this.updateHUD(); }
     };
     let drag = null;
     const start = (cx, cy) => {

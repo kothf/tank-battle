@@ -2,6 +2,12 @@
  * Audio Synthesizer for Retro Tank Battle
  * Pure Web Audio API - Zero External Dependencies
  */
+// Master level and output chain. The synth voices were mixed for headphones:
+// mostly low thumps peaking at -18 dBFS, about 20 dB under typical web media,
+// which TV and laptop speakers barely reproduce. The master is now ~3x louder
+// and a compressor keeps stacked explosions from clipping.
+const MASTER_LEVEL = 0.95;
+
 class SoundFX {
   constructor() {
     this.ctx = null;
@@ -58,8 +64,13 @@ class SoundFX {
       if (navigator.audioSession) { try { navigator.audioSession.type = 'playback'; } catch (e) {} }
       this.ctx = new AudioContext();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.3, this.ctx.currentTime);
-      this.masterGain.connect(this.ctx.destination);
+      this.masterGain.gain.setValueAtTime(this.muted ? 0 : MASTER_LEVEL, this.ctx.currentTime);
+      const comp = this.ctx.createDynamicsCompressor();
+      comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 12;
+      comp.attack.value = 0.002; comp.release.value = 0.15;
+      this.masterGain.connect(comp);
+      comp.connect(this.ctx.destination);
+      this.output = comp;      // what reaches the speakers (tests measure it)
       this.ctx.addEventListener('statechange', () => {
         if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') this.armUnlock();
         this.notify();
@@ -87,7 +98,7 @@ class SoundFX {
     try { localStorage.setItem('tankBattle.muted', this.muted ? '1' : '0'); } catch (e) {}
     if (this.muted) this.stopEngine();
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setValueAtTime(this.muted ? 0 : 0.3, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(this.muted ? 0 : MASTER_LEVEL, this.ctx.currentTime);
     }
     this.notify();
     return this.muted;
@@ -110,6 +121,24 @@ class SoundFX {
     }
     this.noiseCache.set(key, buffer);
     return buffer;
+  }
+
+  // Bright noise snap on top of the low thump, so shots and blasts carry on
+  // small speakers that can't play the bass
+  crack(vol = 0.35, dur = 0.09, freq = 1800) {
+    if (!this.ready()) return;
+    const now = this.ctx.currentTime;
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = this.createNoiseBuffer(0.3);
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'bandpass'; hp.Q.value = 0.7;
+    hp.frequency.setValueAtTime(freq, now);
+    hp.frequency.exponentialRampToValueAtTime(freq * 0.4, now + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    noise.connect(hp); hp.connect(g); g.connect(this.masterGain);
+    noise.start(now); noise.stop(now + dur);
   }
 
   // Short tone helper for the newer sounds
@@ -248,6 +277,7 @@ class SoundFX {
     if (!this.ready()) return;
 
     const now = this.ctx.currentTime;
+    this.crack(weaponId === 'nuke' ? 0.5 : 0.4, weaponId === 'nuke' ? 0.16 : 0.09);
 
     if (weaponId === 'nuke') {
       // Massive deep cannon thump + sub-bass
@@ -505,6 +535,7 @@ class SoundFX {
 
     const now = this.ctx.currentTime;
     const duration = Math.min(1.2, 0.3 + (radius / 50) * 0.6);
+    this.crack(Math.min(0.7, 0.3 + radius / 80), Math.min(0.35, 0.1 + radius / 250), 1400);
 
     // Noise rumble
     const noise = this.ctx.createBufferSource();
