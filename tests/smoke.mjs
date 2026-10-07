@@ -52,6 +52,16 @@ const snd1 = await page.evaluate(() => {
   return { state: soundFX.ctx.state, osc, label: document.getElementById("btnSoundToggle").textContent };
 });
 check(snd1.state === "running" && snd1.osc > 0 && /SOUND ON/.test(snd1.label), `first click starts audio: context ${snd1.state}, firing made ${snd1.osc} oscillators, button "${snd1.label}"`);
+// loud enough for TV and laptop speakers: a shot peaks above -10 dBFS
+const peak = await page.evaluate(async () => {
+  while (game.state !== "PLAYER_TURN") game.update();
+  const an = soundFX.ctx.createAnalyser(); an.fftSize = 2048; soundFX.output.connect(an);
+  const buf = new Float32Array(an.fftSize); let p = 0;
+  soundFX.playShoot("standard");
+  for (let i = 0; i < 12; i++) { await new Promise(r => setTimeout(r, 20)); an.getFloatTimeDomainData(buf); for (const v of buf) p = Math.max(p, Math.abs(v)); }
+  return 20 * Math.log10(p);
+});
+check(peak > -10 && peak < 0, `a shot peaks at ${peak.toFixed(1)} dBFS at the output (was -18)`);
 await page.keyboard.press("m");
 const snd2 = await page.evaluate(() => ({ muted: soundFX.muted, label: document.getElementById("btnSoundToggle").textContent }));
 await page.keyboard.press("m");
@@ -113,6 +123,19 @@ check(has("airstrike", "Bomber") && has("airstrike", "airbomb"), "Air Strike bom
 const damaging = results.filter(r => r.id !== "dirt");
 const hits = damaging.filter(r => r.best > 0).length;
 check(hits >= damaging.length - 1, `Elite bot damages the target with ${hits}/${damaging.length} damaging weapons`);
+
+// --- Fine aiming: a tap is 0.1, holding speeds up -------------------------
+{
+  await page.evaluate(() => { game.setGameMode("pvp"); game.startNewMatch(); });
+  const a0 = await page.evaluate(() => game.activePlayer.angle);
+  await page.keyboard.down("ArrowUp"); await page.evaluate(() => game.update()); await page.keyboard.up("ArrowUp"); await page.evaluate(() => game.update());
+  const a1 = await page.evaluate(() => game.activePlayer.angle);
+  const held = await page.evaluate(() => { const t = game.activePlayer, p0 = t.power; game.keys.KeyE = true; for (let i = 0; i < 60; i++) game.update(); game.keys.KeyE = false; game.update(); return { dp: t.power - p0, label: document.getElementById("powerVal").textContent }; });
+  await page.evaluate(() => game.renderHUD());
+  const label = await page.textContent("#angleVal");
+  check(Math.abs(a1 - a0 - 0.1) < 1e-9 && label === `${(a0 + 0.1).toFixed(1)}°`, `a tap moves the angle by 0.1° (${a0} → ${a1}, shows "${label}")`);
+  check(held.dp > 3 && held.dp < 6, `holding power for 1 s sweeps ${held.dp.toFixed(1)}% (was 30%)`);
+}
 
 // --- Map sizes: each one is playable end to end at the hardest spawns --------
 const maps = await page.evaluate(() => {

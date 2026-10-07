@@ -94,6 +94,7 @@
                 <li><kbd>A</kbd> / <kbd>D</kbd> or <kbd>◀</kbd><kbd>▶</kbd> : Drive Tank</li>
                 <li><kbd>W</kbd> / <kbd>S</kbd> or <kbd>▲</kbd><kbd>▼</kbd> : Aim Angle</li>
                 <li><kbd>Q</kbd> / <kbd>E</kbd> : Adjust Shot Power</li>
+                <li>Tap for 0.1° / 0.1%, hold to sweep faster</li>
                 <li><kbd>1</kbd> - <kbd>0</kbd> : Choose Weapon, <kbd>[</kbd> <kbd>]</kbd> : Cycle Weapons</li>
                 <li><kbd>SPACE</kbd> / <kbd>ENTER</kbd> : Fire Weapon!</li>
                 <li><kbd>V</kbd> : Whole-Battlefield View, <kbd>C</kbd> : Re-center Camera</li>
@@ -141,11 +142,11 @@
         <div class="panel-section">
           <div class="section-label">
             <span>TURRET ANGLE</span>
-            <span id="angleVal" style="color: var(--c-yellow);">45°</span>
+            <span id="angleVal" style="color: var(--c-yellow);">45.0°</span>
           </div>
           <div class="slider-group">
             <button id="btnAngleDown" class="btn-retro btn-step">-</button>
-            <input id="angleSlider" type="range" min="0" max="180" value="45" class="retro-slider">
+            <input id="angleSlider" type="range" min="0" max="180" step="0.1" value="45" class="retro-slider">
             <button id="btnAngleUp" class="btn-retro btn-step">+</button>
           </div>
         </div>
@@ -154,11 +155,11 @@
         <div class="panel-section">
           <div class="section-label">
             <span>FIRE POWER</span>
-            <span id="powerVal" style="color: var(--c-yellow);">65%</span>
+            <span id="powerVal" style="color: var(--c-yellow);">65.0%</span>
           </div>
           <div class="slider-group">
             <button id="btnPowerDown" class="btn-retro btn-step">-</button>
-            <input id="powerSlider" type="range" min="5" max="100" value="65" class="retro-slider">
+            <input id="powerSlider" type="range" min="5" max="100" step="0.1" value="65" class="retro-slider">
             <button id="btnPowerUp" class="btn-retro btn-step">+</button>
           </div>
           <div class="fuel-track" style="margin-top: 2px;">

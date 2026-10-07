@@ -67,7 +67,7 @@ All sound is generated live: cannon thumps, nuke sub-bass, MIRV pops, bounce chi
 | Action | Keyboard | Mouse / Touch |
 | :--- | :--- | :--- |
 | **Drive Tank** | `A` / `D` or `◀` / `▶` | `◀ LEFT` / `RIGHT ▶` (hold) |
-| **Aim Angle** | `W` / `S` or `▲` / `▼` | Angle slider, `[-]`/`[+]`, or drag near your tank |
+| **Aim Angle** | `W` / `S` or `▲` / `▼` (tap: 0.1°, hold: faster) | Angle slider, `[-]`/`[+]`, or drag near your tank |
 | **Fire Power** | `Q` / `E` | Power slider, `[-]`/`[+]` |
 | **Choose Weapon** | `1`–`9`, `0`; `[` / `]` to cycle | Click weapon cards |
 | **FIRE!** | `SPACE` or `ENTER` | `🔥 FIRE!` |
